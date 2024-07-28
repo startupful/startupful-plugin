@@ -14,9 +14,7 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class InstallPlugin extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
     protected static string $view = 'startupful::pages.install-plugin';
-    protected static ?string $navigationGroup = 'Startupful Plugin';
     protected static ?string $navigationLabel = 'Install New Plugin';
     protected static ?string $slug = 'install-new-plugin';
 
