@@ -1,6 +1,6 @@
 <?php
 
-namespace Filament\Startupful\Models;
+namespace Startupful\StartupfulPlugin\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

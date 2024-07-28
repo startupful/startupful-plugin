@@ -1,9 +1,9 @@
 <?php
 
-namespace Filament\Startupful\Pages;
+namespace Startupful\StartupfulPlugin\Pages;
 
 use Filament\Pages\Page;
-use Filament\Startupful\Models\Plugin;
+use Startupful\StartupfulPlugin\Models\Plugin;
 
 class ManagePlugins extends Page
 {

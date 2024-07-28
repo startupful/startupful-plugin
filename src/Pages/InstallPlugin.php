@@ -1,12 +1,12 @@
 <?php
 
-namespace Filament\Startupful\Pages;
+namespace Startupful\StartupfulPlugin\Pages;
 
 use Filament\Pages\Page;
 use Filament\Forms;
-use Filament\Startupful\Models\Plugin;
+use Startupful\StartupfulPlugin\Models\Plugin;
 use Filament\Forms\Form;
-use Filament\Startupful\StartupfulPlugin;
+use Startupful\StartupfulPlugin\StartupfulPlugin;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Symfony\Component\Process\Process;

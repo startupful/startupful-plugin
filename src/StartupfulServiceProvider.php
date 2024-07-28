@@ -1,13 +1,13 @@
 <?php
 
-namespace Filament\Startupful;
+namespace Startupful\StartupfulPlugin;
 
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Filament\Startupful\Services\GithubPluginRepository;
+use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
 use Filament\Facades\Filament;
-use Filament\Startupful\Pages\InstallPlugin;
-use Filament\Startupful\Pages\InstalledPlugins;
+use Startupful\StartupfulPlugin\Pages\InstallPlugin;
+use Startupful\StartupfulPlugin\Pages\InstalledPlugins;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 
 class StartupfulServiceProvider extends PackageServiceProvider

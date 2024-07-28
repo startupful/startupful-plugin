@@ -1,13 +1,13 @@
 <?php
 
-namespace Filament\Startupful;
+namespace Startupful\StartupfulPlugin;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
-use Filament\Startupful\Pages\ManagePlugins;
-use Filament\Startupful\Pages\InstallPlugin;
-use Filament\Startupful\Pages\BrowsePluginsPage;
-use Filament\Startupful\Services\GithubPluginRepository;
+use Startupful\StartupfulPlugin\Pages\ManagePlugins;
+use Startupful\StartupfulPlugin\Pages\InstallPlugin;
+use Startupful\StartupfulPlugin\Pages\BrowsePluginsPage;
+use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
 
 class StartupfulPlugin implements Plugin
 {

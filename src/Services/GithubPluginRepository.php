@@ -1,6 +1,6 @@
 <?php
 
-namespace Filament\Startupful\Services;
+namespace Startupful\StartupfulPlugin\Services;
 
 use GuzzleHttp\Client;
 

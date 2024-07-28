@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Filament\Startupful\Pages\ManagePlugins;
-use Filament\Startupful\Pages\InstallPlugin;
+use Startupful\StartupfulPlugin\Pages\ManagePlugins;
+use Startupful\StartupfulPlugin\Pages\InstallPlugin;
 
 Route::middleware([
     'web',
