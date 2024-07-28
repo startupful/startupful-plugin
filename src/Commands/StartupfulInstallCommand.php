@@ -40,9 +40,9 @@ class StartupfulInstallCommand extends Command
 
             // Add plugin to panel if not exists
             if (!Str::contains($content, '->plugin(StartupfulPlugin::make())')) {
-                $content = Str::replace(
-                    "]);",
-                    "])\n            ->plugin(StartupfulPlugin::make());",
+                $content = preg_replace(
+                    '/(->login\(\))/',
+                    "$1\n            ->plugin(StartupfulPlugin::make())",
                     $content
                 );
             }

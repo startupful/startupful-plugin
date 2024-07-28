@@ -4,11 +4,10 @@ namespace Startupful\StartupfulPlugin;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
+use Illuminate\Support\Facades\Log;
 use Startupful\StartupfulPlugin\Pages\ManagePlugins;
 use Startupful\StartupfulPlugin\Pages\InstallPlugin;
 use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
-use Filament\Navigation\NavigationItem;
-use Filament\Navigation\NavigationGroup;
 
 class StartupfulPlugin implements Plugin
 {
@@ -19,22 +18,25 @@ class StartupfulPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        $panel
-            ->pages([
+        Log::info('StartupfulPlugin register method called');
+        try {
+            $panel->pages([
                 ManagePlugins::class,
-                InstallPlugin::class,
-            ])
-            ->navigationGroups(['Startupful Plugin']);
+                InstallPlugin::class
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in StartupfulPlugin register method: ' . $e->getMessage());
+        }
     }
 
     public function boot(Panel $panel): void
     {
-        //
+        Log::info('StartupfulPlugin boot method called');
     }
 
     public static function make(): static
     {
-        return app(static::class);
+        return new static();
     }
 
     public static function getGithubRepo(): GithubPluginRepository

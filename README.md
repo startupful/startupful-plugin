@@ -7,4 +7,4 @@ This plugin provides functionality for managing startups in Filament admin panel
 You can install the package via composer:
 
 ```bash
-composer require filament/startupful-plugin
+composer require startupful/startupful-plugin
