@@ -13,8 +13,6 @@ class StartupfulInstallCommand extends Command
 
     public function handle()
     {
-        parent::handle();
-
         $this->info('Installing Startupful Plugin...');
 
         $this->updateAdminPanelProvider();
@@ -43,8 +41,8 @@ class StartupfulInstallCommand extends Command
             // Add plugin to panel if not exists
             if (!Str::contains($content, '->plugin(StartupfulPlugin::make())')) {
                 $content = Str::replace(
-                    "return \$panel",
-                    "return \$panel\n            ->plugin(StartupfulPlugin::make())",
+                    "]);",
+                    "])\n            ->plugin(StartupfulPlugin::make());",
                     $content
                 );
             }
