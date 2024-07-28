@@ -9,6 +9,8 @@ use Filament\Facades\Filament;
 use Startupful\StartupfulPlugin\Pages\InstallPlugin;
 use Startupful\StartupfulPlugin\Pages\InstalledPlugins;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
+use Startupful\StartupfulPlugin\Pages\ManagePlugins;
+use Startupful\StartupfulPlugin\Commands\StartupfulInstallCommand;
 
 class StartupfulServiceProvider extends PackageServiceProvider
 {
@@ -20,24 +22,22 @@ class StartupfulServiceProvider extends PackageServiceProvider
             ->name(static::$name)
             ->hasConfigFile()
             ->hasViews('startupful')
-            ->hasMigrations(['create_plugins_table', 'create_plugin_settings_table'])
-            ->runsMigrations()
-            ->hasRoutes(['web'])
-            ->hasInstallCommand(function(InstallCommand $command) {
-                $command
-                    ->publishConfigFile()
-                    ->publishMigrations()
-                    ->askToRunMigrations()
-                    ->endWith(function(InstallCommand $command) {
-                        $command->info('Startupful plugin has been installed successfully!');
-                    });
-            });
+            ->hasCommand(StartupfulInstallCommand::class);
     }
 
     public function packageBooted(): void
     {
+        parent::packageBooted();
+
         $this->app->singleton(GithubPluginRepository::class, function ($app) {
             return new GithubPluginRepository();
         });
+    }
+
+    public function packageRegistered(): void
+    {
+        parent::packageRegistered();
+
+        $this->app->scoped(StartupfulPlugin::class, fn () => StartupfulPlugin::make());
     }
 }

@@ -5,6 +5,7 @@ namespace Startupful\StartupfulPlugin\Pages;
 use Filament\Pages\Page;
 use Filament\Forms;
 use Startupful\StartupfulPlugin\Models\Plugin;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Forms\Form;
 use Startupful\StartupfulPlugin\StartupfulPlugin;
 use Illuminate\Contracts\View\View;
@@ -14,9 +15,16 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class InstallPlugin extends Page
 {
+    protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
     protected static string $view = 'startupful::pages.install-plugin';
-    protected static ?string $navigationLabel = 'Install New Plugin';
-    protected static ?string $slug = 'install-new-plugin';
+    protected static ?string $navigationGroup = 'Startupful Plugin';
+    protected static ?int $navigationSort = 2;
+    protected static ?string $slug = 'startupful-install-plugin';
+
+    public static function getNavigationLabel(): string
+    {
+        return 'Install New Plugin';
+    }
 
     public ?string $search = '';
     public Collection $plugins;
