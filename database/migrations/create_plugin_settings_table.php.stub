@@ -8,14 +8,16 @@ class CreatePluginSettingsTable extends Migration
 {
     public function up()
     {
-        Schema::create('plugin_settings', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('plugin_id')->constrained('plugins')->onDelete('cascade');
-            $table->string('plugin_name');
-            $table->string('key');
-            $table->text('value');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('plugin_settings')) {
+            Schema::create('plugin_settings', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('plugin_id')->constrained('plugins')->onDelete('cascade');
+                $table->string('plugin_name');
+                $table->string('key');
+                $table->text('value');
+                $table->timestamps();
+            });
+        }
     }
 
     public function down()

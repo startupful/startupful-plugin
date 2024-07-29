@@ -36,7 +36,7 @@ class StartupfulInstallCommand extends Command
 
         foreach ($migrations as $migration) {
             $sourcePath = __DIR__ . '/../../../database/migrations/' . $migration;
-            $targetPath = database_path('migrations/' . date('Y_m_d_His_') . Str::before($migration, '.stub'));
+            $targetPath = database_path('migrations/' . date('Y_m_d_His_') . Str::before($migration, '.stub') . '.php');
 
             if (File::exists($sourcePath)) {
                 File::copy($sourcePath, $targetPath);
@@ -52,23 +52,13 @@ class StartupfulInstallCommand extends Command
     {
         $this->info('Running migrations...');
 
-        $migrationFiles = File::glob(database_path('migrations/*_create_plugins_table.php'));
-        if (!empty($migrationFiles)) {
-            $this->call('migrate', [
-                '--path' => 'database/migrations/' . basename($migrationFiles[0])
-            ]);
-        } else {
-            $this->warn('Plugins migration file not found.');
-        }
+        $output = new BufferedOutput;
+        $this->call('migrate', [
+            '--path' => 'database/migrations',
+            '--force' => true
+        ], $output);
 
-        $migrationFiles = File::glob(database_path('migrations/*_create_plugin_settings_table.php'));
-        if (!empty($migrationFiles)) {
-            $this->call('migrate', [
-                '--path' => 'database/migrations/' . basename($migrationFiles[0])
-            ]);
-        } else {
-            $this->warn('Plugin settings migration file not found.');
-        }
+        $this->info($output->fetch());
     }
 
     protected function updateAdminPanelProvider(): void

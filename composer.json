@@ -2,7 +2,7 @@
     "name": "startupful/startupful-plugin",
     "description": "A Filament plugin for managing startups",
     "type": "library",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "license": "MIT",
     "autoload": {
         "psr-4": {
@@ -24,6 +24,9 @@
         "laravel": {
             "providers": [
                 "Startupful\\StartupfulPlugin\\StartupfulServiceProvider"
+            ],
+            "migrations": [
+                "database/migrations"
             ]
         }
     },
