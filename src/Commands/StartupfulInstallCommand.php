@@ -2,6 +2,7 @@
 
 namespace Startupful\StartupfulPlugin\Commands;
 
+use Illuminate\Support\Facades\File;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -15,11 +16,42 @@ class StartupfulInstallCommand extends Command
     {
         $this->info('Installing Startupful Plugin...');
 
+        $this->publishMigrations();
+        $this->runMigrations();
         $this->updateAdminPanelProvider();
 
         $this->info('Startupful Plugin has been installed successfully!');
 
         return Command::SUCCESS;
+    }
+
+    protected function publishMigrations(): void
+    {
+        $this->info('Publishing migrations...');
+
+        $migrations = [
+            'create_plugins_table.php.stub',
+            'create_plugin_settings_table.php.stub'
+        ];
+
+        foreach ($migrations as $migration) {
+            $sourcePath = __DIR__ . '/../../database/migrations/' . $migration;
+            $targetPath = database_path('migrations/' . date('Y_m_d_His_') . Str::before($migration, '.stub'));
+
+            if (File::exists($sourcePath)) {
+                File::copy($sourcePath, $targetPath);
+                $this->info("Published migration: " . basename($targetPath));
+            } else {
+                $this->warn("Migration file not found: " . $migration);
+            }
+        }
+    }
+
+    protected function runMigrations(): void
+    {
+        $this->info('Running migrations...');
+
+        $this->call('migrate');
     }
 
     protected function updateAdminPanelProvider(): void
