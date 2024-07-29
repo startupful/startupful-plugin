@@ -51,7 +51,12 @@ class StartupfulInstallCommand extends Command
     {
         $this->info('Running migrations...');
 
-        $this->call('migrate');
+        $this->call('migrate', [
+            '--path' => 'database/migrations/2024_07_29_011539_create_plugins_table.php'
+        ]);
+        $this->call('migrate', [
+            '--path' => 'database/migrations/2024_07_29_011540_create_plugin_settings_table.php'
+        ]);
     }
 
     protected function updateAdminPanelProvider(): void
