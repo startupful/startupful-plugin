@@ -2,6 +2,7 @@
 
 namespace Startupful\StartupfulPlugin\Commands;
 
+use Symfony\Component\Console\Output\BufferedOutput;
 use Illuminate\Support\Facades\File;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
@@ -39,8 +40,12 @@ class StartupfulInstallCommand extends Command
             $targetPath = database_path('migrations/' . date('Y_m_d_His_') . Str::before($migration, '.stub') . '.php');
 
             if (File::exists($sourcePath)) {
-                File::copy($sourcePath, $targetPath);
-                $this->info("Published migration: " . basename($targetPath));
+                if (!File::exists($targetPath)) {
+                    File::copy($sourcePath, $targetPath);
+                    $this->info("Published migration: " . basename($targetPath));
+                } else {
+                    $this->info("Migration already exists: " . basename($targetPath));
+                }
             } else {
                 $this->warn("Migration file not found: " . $migration);
                 $this->warn("Looked in: " . $sourcePath);
@@ -52,7 +57,7 @@ class StartupfulInstallCommand extends Command
     {
         $this->info('Running migrations...');
 
-        $output = new BufferedOutput;
+        $output = new BufferedOutput();
         $this->call('migrate', [
             '--path' => 'database/migrations',
             '--force' => true
