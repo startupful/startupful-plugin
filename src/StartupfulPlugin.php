@@ -18,7 +18,6 @@ class StartupfulPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        Log::info('StartupfulPlugin register method called');
         try {
             $panel->pages([
                 ManagePlugins::class,
@@ -31,7 +30,7 @@ class StartupfulPlugin implements Plugin
 
     public function boot(Panel $panel): void
     {
-        Log::info('StartupfulPlugin boot method called');
+        //
     }
 
     public static function make(): static

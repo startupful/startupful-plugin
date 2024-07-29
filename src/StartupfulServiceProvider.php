@@ -22,6 +22,11 @@ class StartupfulServiceProvider extends PackageServiceProvider
             ->name(static::$name)
             ->hasConfigFile()
             ->hasViews('startupful')
+            ->hasMigrations([
+                'create_plugins_table',
+                'create_plugin_settings_table'
+            ])
+            ->runsMigrations()
             ->hasCommand(StartupfulInstallCommand::class);
     }
 
