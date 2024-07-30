@@ -99,9 +99,13 @@ class ManagePlugins extends Page implements Tables\Contracts\HasTable
         }
         
         try {
-            // 1. Composer를 사용하여 패키지 제거
             $packageName = $plugin->developer;  // developer 필드 사용
-            $command = ['composer', 'remove', $packageName];
+
+            // 1. 먼저 파일 시스템에서 패키지 삭제
+            $this->cleanupPluginFiles($plugin->name, $packageName);
+
+            // 2. Composer를 사용하여 패키지 제거 (옵션으로 처리)
+            $command = ['composer', 'remove', $packageName, '--no-interaction', '--no-update'];
         
             $env = getenv();
             $env['HOME'] = base_path();
@@ -111,15 +115,13 @@ class ManagePlugins extends Page implements Tables\Contracts\HasTable
             $process->setTimeout(300);
             $process->run();
 
+            // Composer 제거 실패해도 계속 진행
             if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
+                \Log::warning("Failed to remove package via Composer: " . $process->getErrorOutput());
             }
 
-            // 2. AdminPanelProvider.php 파일에서 플러그인 관련 코드 제거
+            // 3. AdminPanelProvider.php 파일에서 플러그인 관련 코드 제거
             $this->removePluginFromAdminPanelProvider($plugin);
-
-            // 3. 파일 정리
-            $this->cleanupPluginFiles($plugin->name, $packageName);
 
             // 4. 데이터베이스에서 플러그인 정보 삭제
             $deleteResult = $plugin->delete();
@@ -129,6 +131,7 @@ class ManagePlugins extends Page implements Tables\Contracts\HasTable
             }
 
         } catch (\Exception $e) {
+            \Log::error("Error uninstalling plugin: " . $e->getMessage());
             throw $e;
         }
     }
@@ -163,10 +166,25 @@ class ManagePlugins extends Page implements Tables\Contracts\HasTable
         // vendor 디렉토리에서 패키지 삭제
         $vendorDir = base_path('vendor/' . str_replace('/', DIRECTORY_SEPARATOR, $packageName));
         if (is_dir($vendorDir)) {
-            if (File::deleteDirectory($vendorDir)) {
-            } else {
+            try {
+                File::deleteDirectory($vendorDir);
+                \Log::info("Successfully deleted vendor directory: " . $vendorDir);
+            } catch (\Exception $e) {
+                \Log::warning("Failed to delete vendor directory: " . $e->getMessage());
             }
         } else {
+            \Log::info("Vendor directory not found: " . $vendorDir);
+        }
+        
+        // composer.json에서 패키지 제거
+        $composerJsonPath = base_path('composer.json');
+        if (file_exists($composerJsonPath)) {
+            $composerJson = json_decode(file_get_contents($composerJsonPath), true);
+            if (isset($composerJson['require'][$packageName])) {
+                unset($composerJson['require'][$packageName]);
+                file_put_contents($composerJsonPath, json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                \Log::info("Removed package from composer.json: " . $packageName);
+            }
         }
         
         // 추가적인 파일 정리 로직이 필요하다면 여기에 구현
