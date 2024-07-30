@@ -139,56 +139,57 @@ class InstallPlugin extends Page
                 '--tag' => 'migrations'
             ]);
 
-            // 새로 발행된 마이그레이션 파일 찾기
+            // 발행된 마이그레이션 파일 찾기
             $migrationFiles = glob(database_path('migrations/*_create_avatar_chat_tables.php'));
             if (empty($migrationFiles)) {
-                throw new \Exception("No migration files found for {$name}");
+                throw new \Exception("No migration files found for {$name} after publishing");
             }
 
             // 마이그레이션 실행
             $this->installationStatus = "Running migrations for {$name}";
-            foreach ($migrationFiles as $file) {
-                $output = Artisan::call('migrate', [
-                    '--path' => str_replace(base_path(), '', $file),
-                    '--force' => true
-                ]);
-                if ($output !== 0) {
-                    throw new \Exception("Migration failed for {$name}. File: " . basename($file) . ". Output: " . Artisan::output());
+            $output = Artisan::call('migrate', ['--force' => true]);
+            if ($output !== 0) {
+                throw new \Exception("Migration failed for {$name}. Output: " . Artisan::output());
+            }
+
+            $this->installationStatus = "Migrations completed for {$name}";
+
+            // AdminPanelProvider.php 파일 수정
+            $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
+            if (file_exists($providerPath)) {
+                $content = file_get_contents($providerPath);
+                
+                // use 문 추가
+                $useStatement = "use Startupful\\{$className}\\{$className}Plugin;";
+                if (!str_contains($content, $useStatement)) {
+                    $content = str_replace("namespace App\Providers\Filament;", "namespace App\Providers\Filament;\n\n{$useStatement}", $content);
                 }
+                
+                // plugin 메서드 추가
+                $pluginMethod = "->plugin({$className}Plugin::make())";
+                if (!str_contains($content, $pluginMethod)) {
+                    $content = preg_replace(
+                        '/(\->login\(\))(\s*->plugins\(\[(?:[^]]+)?\])?\s*/',
+                        "$1\n            ->plugins([\n                {$className}Plugin::make(),\n                $2",
+                        $content
+                    );
+                }
+                
+                file_put_contents($providerPath, $content);
+                
+                $this->installationStatus = "Updated AdminPanelProvider.php for {$name}";
+            } else {
+                $this->installationStatus = "AdminPanelProvider.php not found. Please add the plugin manually.";
             }
+            
+            $this->installationStatus = "Completed installation steps for {$name}";
         } catch (\Exception $e) {
-            $this->installationStatus = "Migration failed for {$name}: " . $e->getMessage();
-            // 로그 기록 또는 사용자에게 알림
+            $this->installationStatus = "Installation failed for {$name}: " . $e->getMessage();
+            \Log::error("Installation failed for {$name}: " . $e->getMessage(), [
+                'exception' => $e,
+                'plugin' => $plugin
+            ]);
+            throw $e; // 상위 레벨에서 처리할 수 있도록 예외를 다시 던집니다.
         }
-        
-        // AdminPanelProvider.php 파일 수정
-        $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
-        if (file_exists($providerPath)) {
-            $content = file_get_contents($providerPath);
-            
-            // use 문 추가
-            $useStatement = "use Startupful\\{$className}\\{$className}Plugin;";
-            if (!str_contains($content, $useStatement)) {
-                $content = str_replace("namespace App\Providers\Filament;", "namespace App\Providers\Filament;\n\n{$useStatement}", $content);
-            }
-            
-            // plugin 메서드 추가
-            $pluginMethod = "->plugin({$className}Plugin::make())";
-            if (!str_contains($content, $pluginMethod)) {
-                $content = preg_replace(
-                    '/(\->login\(\))(\s*->plugins\(\[(?:[^]]+)?\])?\s*/',
-                    "$1\n            ->plugins([\n                {$className}Plugin::make(),\n                $2",
-                    $content
-                );
-            }
-            
-            file_put_contents($providerPath, $content);
-            
-            $this->installationStatus = "Updated AdminPanelProvider.php for {$name}";
-        } else {
-            $this->installationStatus = "AdminPanelProvider.php not found. Please add the plugin manually.";
-        }
-        
-        $this->installationStatus = "Completed installation steps for {$name}";
     }
 }
