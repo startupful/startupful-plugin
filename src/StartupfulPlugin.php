@@ -4,7 +4,6 @@ namespace Startupful\StartupfulPlugin;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
-use Illuminate\Support\Facades\Log;
 use Startupful\StartupfulPlugin\Pages\ManagePlugins;
 use Startupful\StartupfulPlugin\Pages\InstallPlugin;
 use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
@@ -24,7 +23,6 @@ class StartupfulPlugin implements Plugin
                 InstallPlugin::class
             ]);
         } catch (\Exception $e) {
-            Log::error('Error in StartupfulPlugin register method: ' . $e->getMessage());
         }
     }
 

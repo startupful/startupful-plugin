@@ -7,11 +7,15 @@ use Filament\Forms;
 use Startupful\StartupfulPlugin\Models\Plugin;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Startupful\StartupfulPlugin\StartupfulPlugin;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Composer\Autoload\ClassLoader;
 
 class InstallPlugin extends Page
 {
@@ -41,8 +45,7 @@ class InstallPlugin extends Page
             ->schema([
                 Forms\Components\TextInput::make('search')
                     ->placeholder('Search for Startupful plugins...')
-                    ->live()
-                    ->debounce(500)
+                    ->reactive()
                     ->afterStateUpdated(fn () => $this->searchPlugins()),
             ]);
     }
@@ -55,22 +58,54 @@ class InstallPlugin extends Page
 
     public function installPlugin($plugin): void
     {
+        $plugin = is_string($plugin) ? json_decode($plugin, true) : $plugin;
+
+        if (!is_array($plugin)) {
+            $this->installationStatus = "Error: Invalid plugin data";
+            Notification::make()
+                ->title("Failed to install plugin: Invalid data format")
+                ->danger()
+                ->send();
+            return;
+        }
+
         $this->installationStatus = "Installing {$plugin['name']}...";
 
         try {
-            $process = new Process(['composer', 'require', $plugin['package_name']]);
-            $process->setWorkingDirectory(base_path());
+            $version = $plugin['latest_version'] ?? 'dev-master';
+            
+            // 패키지 업데이트 명령으로 변경
+            $command = ['composer', 'require', '--no-cache', "{$plugin['package_name']}"];
+            
+            $env = getenv();
+            $env['HOME'] = base_path();
+            $env['COMPOSER_HOME'] = sys_get_temp_dir() . '/.composer';
+
+            $process = new Process($command, base_path(), $env);
+            $process->setTimeout(300);
             $process->run();
 
             if (!$process->isSuccessful()) {
                 throw new ProcessFailedException($process);
             }
 
+            // 플러그인 설치 명령 실행
+            $this->runDefaultInstallationSteps($plugin);
+
+            $this->addToInstalledPlugins($plugin);
+
             $this->installationStatus = "Plugin {$plugin['name']} installed successfully.";
-            $this->notify('success', "Plugin '{$plugin['name']}' installed successfully.");
+            Notification::make()
+                ->title("Plugin '{$plugin['name']}' installed successfully.")
+                ->success()
+                ->send();
         } catch (\Exception $e) {
-            $this->installationStatus = "Failed to install {$plugin['name']}.";
-            $this->notify('error', "Failed to install plugin: " . $e->getMessage());
+            $this->installationStatus = "Failed to install {$plugin['name']}. Error: " . $e->getMessage();
+            Notification::make()
+                ->title("Failed to install plugin")
+                ->body("Error: " . $e->getMessage() . "\nPlease check the logs for more details.")
+                ->danger()
+                ->send();
         }
     }
 
@@ -78,11 +113,54 @@ class InstallPlugin extends Page
     {
         Plugin::create([
             'name' => $plugin['name'],
-            'version' => $this->getInstalledVersion($plugin['package_name']),
-            'description' => $plugin['description'],
-            'developer' => $plugin['full_name'],
+            'version' => $plugin['latest_version'] ?? 'unknown',
+            'description' => $plugin['description'] ?? '',
+            'developer' => $plugin['full_name'] ?? '',
             'is_active' => true,
             'installed_at' => now(),
         ]);
+    }
+
+    protected function runDefaultInstallationSteps($plugin): void
+    {
+        $name = $plugin['name'] ?? '';
+        $className = str_replace('-', '', ucwords($name, '-')); // 예: 'avatar-chat' -> 'AvatarChat'
+        
+        // 마이그레이션 실행
+        $migrationPath = "packages/startupful/{$name}/database/migrations";
+        if (is_dir(base_path($migrationPath))) {
+            $this->installationStatus = "Running migrations for {$name}";
+            Artisan::call('migrate', ['--path' => $migrationPath]);
+        }
+        
+        // AdminPanelProvider.php 파일 수정
+        $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
+        if (file_exists($providerPath)) {
+            $content = file_get_contents($providerPath);
+            
+            // use 문 추가
+            $useStatement = "use Startupful\\{$className}\\{$className}Plugin;";
+            if (!str_contains($content, $useStatement)) {
+                $content = str_replace("namespace App\Providers\Filament;", "namespace App\Providers\Filament;\n\n{$useStatement}", $content);
+            }
+            
+            // plugin 메서드 추가
+            $pluginMethod = "->plugin({$className}Plugin::make())";
+            if (!str_contains($content, $pluginMethod)) {
+                $content = preg_replace(
+                    '/(->login\(\))/',
+                    "$1\n            {$pluginMethod}",
+                    $content
+                );
+            }
+            
+            file_put_contents($providerPath, $content);
+            
+            $this->installationStatus = "Updated AdminPanelProvider.php for {$name}";
+        } else {
+            $this->installationStatus = "AdminPanelProvider.php not found. Please add the plugin manually.";
+        }
+        
+        $this->installationStatus = "Completed installation steps for {$name}";
     }
 }

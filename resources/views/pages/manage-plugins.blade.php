@@ -1,5 +1,3 @@
 <x-filament::page>
-    <div>
-        Manage Plugins content goes here.
-    </div>
+    {{ $this->table }}
 </x-filament::page>

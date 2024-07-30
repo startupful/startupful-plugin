@@ -31,12 +31,12 @@
                                 View on GitHub
                             </x-filament::button>
                             <x-filament::button
-                                wire:click="installPlugin({{ json_encode($plugin) }})"
-                                wire:loading.attr="disabled"
-                                wire:target="installPlugin({{ json_encode($plugin) }})"
-                            >
-                                Install
-                            </x-filament::button>
+    wire:click="installPlugin('{{ json_encode($plugin) }}')"
+    wire:loading.attr="disabled"
+    wire:target="installPlugin('{{ json_encode($plugin) }}')"
+>
+    Install
+</x-filament::button>
                         </div>
                     </div>
                 </div>
