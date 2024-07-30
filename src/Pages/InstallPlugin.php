@@ -139,17 +139,24 @@ class InstallPlugin extends Page
                 '--tag' => 'migrations'
             ]);
 
-            // 발행된 마이그레이션 파일 찾기
-            $migrationFiles = glob(database_path('migrations/*_create_avatar_chat_tables.php'));
+            // 마이그레이션 파일 찾기
+            $migrationPath = base_path("vendor/startupful/avatar-chat/database/migrations");
+            $migrationFiles = glob("{$migrationPath}/*.php");
+
             if (empty($migrationFiles)) {
-                throw new \Exception("No migration files found for {$name} after publishing");
+                throw new \Exception("No migration files found in {$migrationPath}");
             }
 
             // 마이그레이션 실행
             $this->installationStatus = "Running migrations for {$name}";
-            $output = Artisan::call('migrate', ['--force' => true]);
-            if ($output !== 0) {
-                throw new \Exception("Migration failed for {$name}. Output: " . Artisan::output());
+            foreach ($migrationFiles as $file) {
+                $output = Artisan::call('migrate', [
+                    '--path' => str_replace(base_path() . '/', '', $file),
+                    '--force' => true
+                ]);
+                if ($output !== 0) {
+                    throw new \Exception("Migration failed for {$name}. File: " . basename($file) . ". Output: " . Artisan::output());
+                }
             }
 
             $this->installationStatus = "Migrations completed for {$name}";
