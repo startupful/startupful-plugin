@@ -139,15 +139,23 @@ class InstallPlugin extends Page
                 '--tag' => 'migrations'
             ]);
 
+            // 새로 발행된 마이그레이션 파일 찾기
+            $migrationFiles = glob(database_path('migrations/*_create_avatar_chat_tables.php'));
+            if (empty($migrationFiles)) {
+                throw new \Exception("No migration files found for {$name}");
+            }
+
             // 마이그레이션 실행
             $this->installationStatus = "Running migrations for {$name}";
-            $output = Artisan::call('migrate', ['--force' => true]);
-            
-            if ($output !== 0) {
-                throw new \Exception("Migration failed for {$name}. Output: " . Artisan::output());
+            foreach ($migrationFiles as $file) {
+                $output = Artisan::call('migrate', [
+                    '--path' => str_replace(base_path(), '', $file),
+                    '--force' => true
+                ]);
+                if ($output !== 0) {
+                    throw new \Exception("Migration failed for {$name}. File: " . basename($file) . ". Output: " . Artisan::output());
+                }
             }
-            
-            $this->installationStatus = "Migrations completed for {$name}";
         } catch (\Exception $e) {
             $this->installationStatus = "Migration failed for {$name}: " . $e->getMessage();
             // 로그 기록 또는 사용자에게 알림
@@ -168,8 +176,8 @@ class InstallPlugin extends Page
             $pluginMethod = "->plugin({$className}Plugin::make())";
             if (!str_contains($content, $pluginMethod)) {
                 $content = preg_replace(
-                    '/(->login\(\))/',
-                    "$1\n            {$pluginMethod}",
+                    '/(\->login\(\))(\s*->plugins\(\[(?:[^]]+)?\])?\s*/',
+                    "$1\n            ->plugins([\n                {$className}Plugin::make(),\n                $2",
                     $content
                 );
             }
