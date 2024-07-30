@@ -136,24 +136,25 @@ class ManagePlugins extends Page implements Tables\Contracts\HasTable
     protected function removePluginFromAdminPanelProvider(Plugin $plugin): void
     {
         $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
-        if (file_exists($providerPath)) {
+        if (!file_exists($providerPath)) {
+            throw new \Exception("AdminPanelProvider.php file not found");
+        }
+
+        try {
             $content = file_get_contents($providerPath);
+            if ($content === false) {
+                throw new \Exception("Failed to read AdminPanelProvider.php");
+            }
             
-            $className = str_replace('-', '', ucwords($plugin->name, '-')); // 예: 'avatar-chat' -> 'AvatarChat'
+            // (위의 코드와 동일)
             
-            // use 문 제거
-            $useStatement = "use Startupful\\{$className}\\{$className}Plugin;";
-            $content = str_replace($useStatement, '', $content);
-            
-            // plugin 메서드 제거
-            $pluginMethod = "->plugin({$className}Plugin::make())";
-            $content = str_replace($pluginMethod, '', $content);
-            
-            // 빈 줄 정리
-            $content = preg_replace("/^\s*\n+/m", "\n", $content);
-            
-            file_put_contents($providerPath, $content);
-        } else {
+            if (file_put_contents($providerPath, $content) === false) {
+                throw new \Exception("Failed to write updated content to AdminPanelProvider.php");
+            }
+        } catch (\Exception $e) {
+            // 로그 기록 또는 사용자에게 알림
+            \Log::error("Error removing plugin from AdminPanelProvider: " . $e->getMessage());
+            throw $e;
         }
     }
 

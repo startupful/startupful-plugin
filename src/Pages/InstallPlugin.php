@@ -124,13 +124,33 @@ class InstallPlugin extends Page
     protected function runDefaultInstallationSteps($plugin): void
     {
         $name = $plugin['name'] ?? '';
-        $className = str_replace('-', '', ucwords($name, '-')); // 예: 'avatar-chat' -> 'AvatarChat'
+        $className = str_replace('-', '', ucwords($name, '-'));
         
-        // 마이그레이션 실행
-        $migrationPath = "packages/startupful/{$name}/database/migrations";
-        if (is_dir(base_path($migrationPath))) {
+        try {
+            $providerClass = "Startupful\\{$className}\\{$className}ServiceProvider";
+            if (!class_exists($providerClass)) {
+                throw new \Exception("Service provider class {$providerClass} not found");
+            }
+            
+            // 마이그레이션 파일 발행
+            $this->installationStatus = "Publishing migrations for {$name}";
+            Artisan::call('vendor:publish', [
+                '--provider' => $providerClass,
+                '--tag' => 'migrations'
+            ]);
+
+            // 마이그레이션 실행
             $this->installationStatus = "Running migrations for {$name}";
-            Artisan::call('migrate', ['--path' => $migrationPath]);
+            $output = Artisan::call('migrate', ['--force' => true]);
+            
+            if ($output !== 0) {
+                throw new \Exception("Migration failed for {$name}. Output: " . Artisan::output());
+            }
+            
+            $this->installationStatus = "Migrations completed for {$name}";
+        } catch (\Exception $e) {
+            $this->installationStatus = "Migration failed for {$name}: " . $e->getMessage();
+            // 로그 기록 또는 사용자에게 알림
         }
         
         // AdminPanelProvider.php 파일 수정
