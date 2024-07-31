@@ -11,6 +11,7 @@ use Startupful\StartupfulPlugin\Pages\InstalledPlugins;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Startupful\StartupfulPlugin\Pages\ManagePlugins;
 use Startupful\StartupfulPlugin\Commands\StartupfulInstallCommand;
+use Startupful\StartupfulPlugin\Http\Controllers\PluginInstallController;
 
 class StartupfulServiceProvider extends PackageServiceProvider
 {
@@ -36,6 +37,10 @@ class StartupfulServiceProvider extends PackageServiceProvider
 
         $this->app->singleton(GithubPluginRepository::class, function ($app) {
             return new GithubPluginRepository();
+        });
+
+        $this->app->bind(PluginInstallController::class, function ($app) {
+            return new PluginInstallController();
         });
     }
 

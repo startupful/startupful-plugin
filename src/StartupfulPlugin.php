@@ -5,8 +5,9 @@ namespace Startupful\StartupfulPlugin;
 use Filament\Contracts\Plugin;
 use Filament\Panel;
 use Startupful\StartupfulPlugin\Pages\ManagePlugins;
-use Startupful\StartupfulPlugin\Pages\InstallPlugin;
+use Startupful\StartupfulPlugin\Pages\InstallPluginPage;
 use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
+use Startupful\StartupfulPlugin\Http\Controllers\PluginInstallController;
 
 class StartupfulPlugin implements Plugin
 {
@@ -20,7 +21,7 @@ class StartupfulPlugin implements Plugin
         try {
             $panel->pages([
                 ManagePlugins::class,
-                InstallPlugin::class
+                InstallPluginPage::class
             ]);
         } catch (\Exception $e) {
         }
@@ -39,5 +40,10 @@ class StartupfulPlugin implements Plugin
     public static function getGithubRepo(): GithubPluginRepository
     {
         return app(GithubPluginRepository::class);
+    }
+
+    public static function getInstallController(): PluginInstallController
+    {
+        return app(PluginInstallController::class);
     }
 }

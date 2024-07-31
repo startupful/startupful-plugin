@@ -1,64 +1,24 @@
 <?php
 
-namespace Startupful\StartupfulPlugin\Pages;
+namespace Startupful\StartupfulPlugin\Http\Controllers;
 
-use Filament\Pages\Page;
-use Filament\Forms;
 use Startupful\StartupfulPlugin\Models\Plugin;
-use Illuminate\Database\Eloquent\Model;
-use Filament\Forms\Form;
-use Filament\Notifications\Notification;
 use Startupful\StartupfulPlugin\StartupfulPlugin;
-use Illuminate\Contracts\View\View;
-use Illuminate\Support\Collection;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
-use Composer\Autoload\ClassLoader;
 
-class InstallPlugin extends Page
+class PluginInstallController
 {
-    protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
-    protected static string $view = 'startupful::pages.install-plugin';
-    protected static ?string $navigationGroup = 'Startupful Plugin';
-    protected static ?int $navigationSort = 2;
-    protected static ?string $slug = 'startupful-install-plugin';
-
-    public static function getNavigationLabel(): string
-    {
-        return 'Install New Plugin';
-    }
-
-    public ?string $search = '';
-    public Collection $plugins;
-    public ?string $installationStatus = null;
-
-    public function mount(): void
-    {
-        $this->plugins = collect(StartupfulPlugin::getGithubRepo()->getStartupfulPlugins());
-    }
-
-    public function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('search')
-                    ->placeholder('Search for Startupful plugins...')
-                    ->reactive()
-                    ->afterStateUpdated(fn () => $this->searchPlugins()),
-            ]);
-    }
-
-    public function searchPlugins(): void
-    {
-        $results = StartupfulPlugin::getGithubRepo()->searchPlugins($this->search);
-        $this->plugins = collect($results);
-    }
+    public $installationStatus;
+    protected $plugin;
 
     public function installPlugin($plugin): void
     {
-        $plugin = is_string($plugin) ? json_decode($plugin, true) : $plugin;
+        if (is_string($plugin)) {
+            $plugin = json_decode($plugin, true);
+        }
 
         if (!is_array($plugin)) {
             $this->installationStatus = "Error: Invalid plugin data";
@@ -69,33 +29,20 @@ class InstallPlugin extends Page
             return;
         }
 
+        $this->plugin = $plugin;
+
         $this->installationStatus = "Installing {$plugin['name']}...";
 
         try {
             $version = $plugin['latest_version'] ?? 'dev-master';
-            
-            // package_name을 developer로 사용
             $developer = $plugin['package_name'] ?? $plugin['full_name'] ?? '';
             
-            $command = ['composer', 'require', '--no-cache', "{$developer}"];
+            $this->runComposerRequire($developer);
             
-            $env = getenv();
-            $env['HOME'] = base_path();
-            $env['COMPOSER_HOME'] = sys_get_temp_dir() . '/.composer';
-
-            $process = new Process($command, base_path(), $env);
-            $process->setTimeout(300);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
-            }
-
             // developer 정보 추가
             $plugin['developer'] = $developer;
 
             $this->runDefaultInstallationSteps($plugin);
-
             $this->addToInstalledPlugins($plugin);
 
             $this->installationStatus = "Plugin {$plugin['name']} installed successfully.";
@@ -104,12 +51,55 @@ class InstallPlugin extends Page
                 ->success()
                 ->send();
         } catch (\Exception $e) {
-            $this->installationStatus = "Failed to install {$plugin['name']}. Error: " . $e->getMessage();
-            Notification::make()
-                ->title("Failed to install plugin")
-                ->body("Error: " . $e->getMessage() . "\nPlease check the logs for more details.")
-                ->danger()
-                ->send();
+            $this->handleInstallationError($plugin['name'], $e);
+        }
+    }
+
+    protected function runDefaultInstallationSteps($plugin): void
+    {
+        $name = $plugin['name'] ?? '';
+        $developer = $plugin['developer'] ?? '';
+        
+        \Log::info("Starting installation steps for {$name}", ['developer' => $developer]);
+
+        try {
+            $providerClass = $this->generateServiceProviderClass($name);
+
+            \Log::info("Generated service provider class: {$providerClass}");
+
+            // 나머지 설치 단계 진행
+            $this->copyMigrationFiles($developer, $name);
+            $this->runMigrations($name);
+            $this->updateAdminPanelProvider($providerClass);
+
+            $this->installationStatus = "Completed installation steps for {$name}";
+            \Log::info("Installation completed for {$name}");
+
+        } catch (\Exception $e) {
+            $this->handleInstallationError($name, $e);
+        }
+    }
+
+    protected function generateServiceProviderClass($name): string
+    {
+        // 특수기호 제거 및 첫 알파벳과 특수기호 앞의 텍스트를 대문자로 변환
+        $name_2 = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+        return "Startupful\\{$name_2}\\{$name_2}Plugin";
+    }
+
+    protected function runComposerRequire(string $packageName): void
+    {
+        $command = ['composer', 'require', '--no-cache', $packageName];
+        $env = getenv();
+        $env['HOME'] = base_path();
+        $env['COMPOSER_HOME'] = sys_get_temp_dir() . '/.composer';
+
+        $process = new Process($command, base_path(), $env);
+        $process->setTimeout(300);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
         }
     }
 
@@ -168,70 +158,6 @@ class InstallPlugin extends Page
         }
     }
 
-    protected function addToInstalledPlugins($plugin): void
-    {
-        Plugin::create([
-            'name' => $plugin['name'],
-            'version' => $plugin['latest_version'] ?? 'unknown',
-            'description' => $plugin['description'] ?? '',
-            'developer' => $plugin['full_name'] ?? '',
-            'is_active' => true,
-            'installed_at' => now(),
-        ]);
-    }
-
-    protected function runDefaultInstallationSteps($plugin): void
-    {
-        $name = $plugin['name'] ?? '';
-        $developer = $plugin['developer'] ?? '';
-        $className = $this->generateClassName($name);
-        
-        \Log::info("Starting installation steps for {$name}", ['developer' => $developer, 'class_name' => $className]);
-
-        try {
-            $possibleProviderClasses = [
-                "Startupful\\{$className}\\{$className}ServiceProvider",
-                "Startupful\\{$className}\\ServiceProvider",
-                "Startupful\\".ucfirst($name)."\\ServiceProvider",
-            ];
-            
-            \Log::info("Looking for service provider. Possible classes: " . implode(', ', $possibleProviderClasses));
-
-            $providerClass = $this->findServiceProvider($possibleProviderClasses);
-
-            if (!$providerClass) {
-                throw new \Exception("Service provider class not found");
-            }
-
-            \Log::info("Service provider found: {$providerClass}");
-
-            $this->copyMigrationFiles($developer, $name);
-            $this->runMigrations($name);
-            $this->updateAdminPanelProvider($className);
-
-            $this->installationStatus = "Completed installation steps for {$name}";
-            \Log::info("Installation completed for {$name}");
-
-        } catch (\Exception $e) {
-            $this->handleInstallationError($name, $e);
-        }
-    }
-
-    private function generateClassName($name): string
-    {
-        return str_replace(['-', ' '], '', ucwords($name, '- '));
-    }
-
-    private function findServiceProvider($possibleClasses)
-    {
-        foreach ($possibleClasses as $class) {
-            if (class_exists($class)) {
-                return $class;
-            }
-        }
-        return null;
-    }
-
     private function runMigrations($name): void
     {
         \Log::info("Running migrations for {$name}");
@@ -247,8 +173,17 @@ class InstallPlugin extends Page
 
     private function updateAdminPanelProvider($className): void
     {
+        \Log::info("Checking if class exists: {$className}");
+
+        $shortClassName = $this->getShortClassName($className);
+
+        if (class_exists($className)) {
+            \Log::info("Class exists: {$className}. No need to update AdminPanelProvider.php");
+            return;
+        }
+
         $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
-        \Log::info("Updating AdminPanelProvider.php at: {$providerPath}");
+        \Log::info("Class does not exist. Updating AdminPanelProvider.php at: {$providerPath}");
 
         if (!file_exists($providerPath)) {
             throw new \Exception("AdminPanelProvider.php not found at: {$providerPath}");
@@ -256,8 +191,8 @@ class InstallPlugin extends Page
 
         $content = file_get_contents($providerPath);
 
-        $useStatement = "use Startupful\\{$className}\\{$className}Plugin;";
-        $pluginMethod = "->plugin({$className}Plugin::make())";
+        $useStatement = "use {$className};";
+        $pluginMethod = "->plugin({$shortClassName}::make())";
 
         if (!str_contains($content, $useStatement)) {
             $content = str_replace("namespace App\Providers\Filament;", "namespace App\Providers\Filament;\n\n{$useStatement}", $content);
@@ -273,6 +208,24 @@ class InstallPlugin extends Page
         \Log::info("AdminPanelProvider.php updated successfully");
     }
 
+    private function getShortClassName($className): string
+    {
+        $parts = explode('\\', $className);
+        return end($parts);
+    }
+
+    protected function addToInstalledPlugins(array $plugin): void
+    {
+        Plugin::create([
+            'name' => $plugin['name'],
+            'version' => $plugin['latest_version'] ?? 'unknown',
+            'description' => $plugin['description'] ?? '',
+            'developer' => $plugin['full_name'] ?? '',
+            'is_active' => true,
+            'installed_at' => now(),
+        ]);
+    }
+
     private function handleInstallationError($name, \Exception $e): void
     {
         $this->installationStatus = "Installation failed for {$name}: " . $e->getMessage();
@@ -280,6 +233,17 @@ class InstallPlugin extends Page
             'exception' => $e,
             'trace' => $e->getTraceAsString()
         ]);
-        throw $e;
+        Notification::make()
+            ->title("Failed to install plugin")
+            ->body("Error: " . $e->getMessage() . "\nPlease check the logs for more details.")
+            ->danger()
+            ->send();
+    }
+
+    protected function generateClassName(string $name): string
+    {
+        $name = str_replace('-', ' ', $name);
+        $name = ucwords($name);
+        return str_replace(' ', '', $name);
     }
 }

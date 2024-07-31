@@ -83,4 +83,16 @@ class GithubPluginRepository
             ];
         }
     }
+
+    public function getLatestVersion($packageName)
+    {
+        try {
+            $response = $this->client->get("repos/{$packageName}/releases/latest");
+            $data = json_decode($response->getBody()->getContents(), true);
+            return $data['tag_name'] ?? null;
+        } catch (\Exception $e) {
+            \Log::error('GitHub API Error: ' . $e->getMessage());
+            return null;
+        }
+    }
 }
