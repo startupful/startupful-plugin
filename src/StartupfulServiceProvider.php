@@ -12,6 +12,7 @@ use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Startupful\StartupfulPlugin\Pages\ManagePlugins;
 use Startupful\StartupfulPlugin\Commands\StartupfulInstallCommand;
 use Startupful\StartupfulPlugin\Http\Controllers\PluginInstallController;
+use Startupful\StartupfulPlugin\Models\Plugin;
 
 class StartupfulServiceProvider extends PackageServiceProvider
 {

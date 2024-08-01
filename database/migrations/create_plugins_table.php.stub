@@ -16,6 +16,7 @@ class CreatePluginsTable extends Migration
                 $table->text('description')->nullable();
                 $table->string('developer');
                 $table->boolean('is_active')->default(false);
+                $table->boolean('is_core')->default(false);
                 $table->timestamp('installed_at');
                 $table->timestamp('last_updated_at')->nullable();
                 $table->timestamps();

@@ -19,16 +19,36 @@ use Startupful\StartupfulPlugin\StartupfulPlugin;
 use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Artisan;
 
 class ManagePluginsController
 {
     use Tables\Concerns\InteractsWithTable;
 
     protected $mainServerUrl = 'https://startupful.io';
+    protected $githubRepo;
+
+    public function __construct(GithubPluginRepository $githubRepo)
+    {
+        $this->githubRepo = $githubRepo;
+    }
 
     protected function getGithubRepo(): GithubPluginRepository
     {
         return App::make(GithubPluginRepository::class);
+    }
+
+    protected function getLatestStartupfulPluginVersion(): ?string
+    {
+        return $this->githubRepo->getLatestVersion('startupful/startupful-plugin');
+    }
+
+    protected function getCurrentStartupfulPluginVersion(): string
+    {
+        // 현재 버전을 가져오는 로직을 구현해야 합니다.
+        // 예를 들어, 설정 파일이나 데이터베이스에서 읽어올 수 있습니다.
+        // 임시로 하드코딩된 값을 반환합니다.
+        return '1.0.0';
     }
 
     public function table(Table $table): Table
@@ -37,18 +57,18 @@ class ManagePluginsController
         $isVerified = Session::get('is_verified', false);
 
         return $table
-            ->query(Plugin::query())
+            ->query(Plugin::query()->orderByDesc('is_core')->orderBy('name'))
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('version'),
                 Tables\Columns\TextColumn::make('description')
-                    ->limit(50),
-                Tables\Columns\TextColumn::make('developer'),
+                    ->limit(100),
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Active')
                     ->onColor('success')
-                    ->offColor('danger'),
+                    ->offColor('danger')
+                    ->disabled(fn (Plugin $record) => $record->is_core),
                 Tables\Columns\TextColumn::make('installed_at')
                     ->dateTime(),
             ])
@@ -78,14 +98,7 @@ class ManagePluginsController
                     ->action(function (Plugin $record) {
                         $this->uninstallPlugin($record);
                     })
-            ])
-            ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()
-                    ->before(function ($records) {
-                        foreach ($records as $record) {
-                            $this->uninstallPlugin($record);
-                        }
-                    }),
+                    ->hidden(fn (Plugin $record) => $record->is_core)
             ])
             ->headerActions([
                 Action::make('pluginKeyAction')
@@ -107,29 +120,6 @@ class ManagePluginsController
                     ->button()
                     ->label(fn () => $isVerified ? 'Plugin Key Remove' : 'Plugin Key Verify')
                     ->color(fn () => $isVerified ? 'danger' : 'primary'),
-                Action::make('updatePluginManager')
-                    ->label('Plugin Manager Update')
-                    ->icon('heroicon-o-arrow-path')
-                    ->action(fn () => $this->updateStartupfulPlugin())
-                    ->disabled(function () {
-                        $latestVersion = $this->getLatestStartupfulPluginVersion();
-                        $currentVersion = $this->getCurrentStartupfulPluginVersion();
-                        return $latestVersion === $currentVersion;
-                    })
-                    ->tooltip(function () {
-                        $latestVersion = $this->getLatestStartupfulPluginVersion();
-                        $currentVersion = $this->getCurrentStartupfulPluginVersion();
-                        return $latestVersion === $currentVersion
-                            ? 'Plugin Manager is up to date'
-                            : 'Update available for Plugin Manager';
-                    })
-                    ->color(function () {
-                        $latestVersion = $this->getLatestStartupfulPluginVersion();
-                        $currentVersion = $this->getCurrentStartupfulPluginVersion();
-                        return $latestVersion === $currentVersion
-                            ? 'gray'
-                            : 'primary';
-                    }),
             ]);
     }
 
@@ -146,17 +136,6 @@ class ManagePluginsController
     protected function getUninstallController()
     {
         return App::make(PluginUninstallController::class);
-    }
-
-    protected function getLatestStartupfulPluginVersion(): string
-    {
-        return $this->getGithubRepo()->getLatestVersion('startupful/plugin') ?? '0.0.0';
-    }
-
-    protected function getCurrentStartupfulPluginVersion(): string
-    {
-        $composerJson = json_decode(file_get_contents(base_path('composer.json')), true);
-        return $composerJson['require']['startupful/plugin'] ?? '0.0.0';
     }
 
     public function updatePlugin(Plugin $plugin): void
@@ -184,6 +163,8 @@ class ManagePluginsController
                 ->send();
         }
     }
+
+
 
     public function verifySubscription($pluginKey)
     {

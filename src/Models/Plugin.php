@@ -15,12 +15,14 @@ class Plugin extends Model
         'description',
         'developer',
         'is_active',
+        'is_core',
         'installed_at',
         'last_updated_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_core' => 'boolean',
         'installed_at' => 'datetime',
         'last_updated_at' => 'datetime',
     ];

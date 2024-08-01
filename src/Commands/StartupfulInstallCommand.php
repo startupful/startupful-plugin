@@ -6,6 +6,8 @@ use Symfony\Component\Console\Output\BufferedOutput;
 use Illuminate\Support\Facades\File;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
+use Startupful\StartupfulPlugin\Models\Plugin;
+use Illuminate\Support\Facades\Schema;
 
 class StartupfulInstallCommand extends Command
 {
@@ -17,13 +19,66 @@ class StartupfulInstallCommand extends Command
     {
         $this->info('Installing Startupful Plugin...');
 
-        $this->publishMigrations();
-        $this->runMigrations();
-        $this->updateAdminPanelProvider();
+        // Publish migrations
+        $this->call('vendor:publish', [
+            '--provider' => 'Startupful\StartupfulPlugin\StartupfulServiceProvider',
+            '--tag' => 'startupful-migrations'
+        ]);
 
-        $this->info('Startupful Plugin has been installed successfully!');
+        // Run migrations
+        $this->call('migrate');
 
-        return Command::SUCCESS;
+        $version = $this->getCurrentVersion();
+
+        // Check if the plugins table exists
+        if (Schema::hasTable('plugins')) {
+            // Add Startupful Plugin to the plugins table
+            Plugin::updateOrCreate(
+                ['name' => 'startupful-plugin'],
+                [
+                    'version' => 'v' . ltrim($version, 'v'),
+                    'description' => 'Core plugin for Startupful',
+                    'developer' => 'startupful/startupful-plugin',
+                    'is_active' => true,
+                    'is_core' => true,
+                    'installed_at' => now(),
+                ]
+            );
+
+            $this->info('Startupful Plugin has been installed successfully.');
+        } else {
+            $this->error('The plugins table does not exist. Migration may have failed.');
+            $this->info('Trying to run migrations manually...');
+            
+            // Force run migrations
+            $this->call('migrate', ['--force' => true]);
+            
+            if (Schema::hasTable('plugins')) {
+                $this->info('Migrations ran successfully.');
+                // Add Startupful Plugin to the plugins table
+                Plugin::updateOrCreate(
+                    ['name' => 'startupful-plugin'],
+                    [
+                        'version' => 'v' . ltrim($version, 'v'),
+                        'description' => 'Core plugin for Startupful',
+                        'developer' => 'Startupful',
+                        'is_active' => true,
+                        'is_core' => true,
+                        'installed_at' => now(),
+                    ]
+                );
+                $this->info('Startupful Plugin has been installed successfully.');
+            } else {
+                $this->error('Failed to create the plugins table. Please check your database configuration and migration files.');
+            }
+        }
+    }
+
+    private function getCurrentVersion(): string
+    {
+        $composerJson = File::get(__DIR__ . '/../../composer.json');
+        $composerData = json_decode($composerJson, true);
+        return $composerData['version'] ?? '1.0.0';  // 기본값으로 1.0.0 사용
     }
 
     protected function publishMigrations(): void
