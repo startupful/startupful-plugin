@@ -6,6 +6,7 @@ use Startupful\StartupfulPlugin\Models\Plugin;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 
 class PluginInstallController
 {
