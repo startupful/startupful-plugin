@@ -87,40 +87,28 @@ class ComposerOperationsController
         }
     }
 
+    private function isDevMode(): bool
+    {
+        return app()->environment('local', 'development');
+    }
+
+    private function getPackagePath($packageName): string
+    {
+        $vendorPath = base_path('vendor/' . str_replace('/', DIRECTORY_SEPARATOR, $packageName));
+        $localPath = base_path('packages/' . str_replace('/', DIRECTORY_SEPARATOR, $packageName));
+
+        return file_exists($localPath) ? $localPath : $vendorPath;
+    }
+
     public function updatePackage($packageName, $version = null): string
     {
-        try {
-            $vendorDir = base_path('vendor/' . str_replace('/', DIRECTORY_SEPARATOR, $packageName));
-            $tempDir = sys_get_temp_dir() . '/' . uniqid('plugin_update_');
-            
-            // 기존 디렉토리를 임시 디렉토리로 복사
-            if (is_dir($vendorDir)) {
-                $this->copyDirectory($vendorDir, $tempDir);
-                $this->forceDeleteDirectory($vendorDir);
-            }
+        $packagePath = $this->getPackagePath($packageName);
 
-            $command = ['require', "{$packageName}:{$version}"];
-
-            $process = $this->runComposerCommand($command);
-            
-            // 업데이트 성공 시 임시 디렉토리 삭제
-            if (is_dir($tempDir)) {
-                $this->forceDeleteDirectory($tempDir);
-            }
-            
-            Log::info("Package {$packageName} updated successfully. Output: " . $process->getOutput());
-            return "Package {$packageName} updated successfully.";
-        } catch (ProcessFailedException $e) {
-            // 실패 시 임시 디렉토리를 원래 위치로 복원
-            if (is_dir($tempDir) && !is_dir($vendorDir)) {
-                $this->copyDirectory($tempDir, $vendorDir);
-                $this->forceDeleteDirectory($tempDir);
-            }
-            
-            $errorOutput = $e->getProcess()->getErrorOutput();
-            Log::error("Failed to update package {$packageName}. Error: " . $errorOutput);
-            throw new \Exception("Failed to update package {$packageName}. Error: " . $errorOutput);
+        if ($this->isDevMode() && file_exists($packagePath . '/.git')) {
+            return $this->updatePackageInDevMode($packagePath);
         }
+
+        return $this->updatePackageViaComposer($packageName, $version);
     }
 
     private function copyDirectory($source, $destination)
@@ -147,6 +135,38 @@ class ComposerOperationsController
                     copy($item, $targetPath);
                 }
             }
+        }
+    }
+
+    private function updatePackageInDevMode($packagePath): string
+    {
+        try {
+            $process = new Process(['git', 'pull'], $packagePath);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+
+            Log::info("Package updated successfully in dev mode. Output: " . $process->getOutput());
+            return "Package updated successfully in dev mode.";
+        } catch (\Exception $e) {
+            Log::error("Failed to update package in dev mode. Error: " . $e->getMessage());
+            throw new \Exception("Failed to update package in dev mode. Error: " . $e->getMessage());
+        }
+    }
+
+    private function updatePackageViaComposer($packageName, $version = null): string
+    {
+        try {
+            $command = ['require', "{$packageName}:{$version}", '--update-with-dependencies'];
+            $process = $this->runComposerCommand($command);
+            
+            Log::info("Package {$packageName} updated successfully. Output: " . $process->getOutput());
+            return "Package {$packageName} updated successfully.";
+        } catch (\Exception $e) {
+            Log::error("Failed to update package {$packageName}. Error: " . $e->getMessage());
+            throw new \Exception("Failed to update package {$packageName}. Error: " . $e->getMessage());
         }
     }
 
@@ -179,19 +199,16 @@ class ComposerOperationsController
 
     private function ensureWritePermissions($path)
     {
-        if (is_link($path)) {
-            $realPath = readlink($path);
-            if (!is_writable($realPath)) {
-                @chmod($realPath, 0777);
-                if (!is_writable($realPath)) {
-                    throw new \Exception("Unable to set write permissions on symlinked path: $path (real path: $realPath)");
-                }
+        if (!is_writable($path)) {
+            // 임시 디렉토리 사용
+            $tempPath = sys_get_temp_dir() . '/' . basename($path);
+            if (@copy($path, $tempPath)) {
+                return $tempPath;
             }
-        } elseif (!is_writable($path)) {
-            @chmod($path, 0777);
-            if (!is_writable($path)) {
-                throw new \Exception("Unable to set write permissions on: $path");
-            }
+            
+            // 복사도 실패한 경우
+            throw new \Exception("Unable to set write permissions on: $path. Please contact your server administrator to grant necessary permissions.");
         }
+        return $path;
     }
 }
