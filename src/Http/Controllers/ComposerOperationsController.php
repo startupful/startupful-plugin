@@ -11,8 +11,13 @@ class ComposerOperationsController
 {
     private function forceDeleteDirectory($dir)
     {
-        if (!is_dir($dir)) {
+        if (!file_exists($dir)) {
             return;
+        }
+
+        if (is_link($dir)) {
+            $this->ensureWritePermissions(readlink($dir));
+            return unlink($dir);
         }
 
         $files = new \RecursiveIteratorIterator(
@@ -23,15 +28,15 @@ class ComposerOperationsController
         foreach ($files as $file) {
             $this->ensureWritePermissions($file->getRealPath());
 
-            if ($file->isDir()) {
-                @rmdir($file->getRealPath());
+            if ($file->isDir() && !is_link($file->getPathname())) {
+                rmdir($file->getRealPath());
             } else {
-                @unlink($file->getRealPath());
+                unlink($file->getRealPath());
             }
         }
 
         $this->ensureWritePermissions($dir);
-        @rmdir($dir);
+        rmdir($dir);
     }
 
     public function removePackageFromComposerJson($packageName): void
@@ -130,10 +135,17 @@ class ComposerOperationsController
         );
 
         foreach ($iterator as $item) {
+            $targetPath = $destination . DIRECTORY_SEPARATOR . $iterator->getSubPathname();
             if ($item->isDir()) {
-                mkdir($destination . DIRECTORY_SEPARATOR . $iterator->getSubPathname());
+                if (!is_dir($targetPath)) {
+                    mkdir($targetPath);
+                }
             } else {
-                copy($item, $destination . DIRECTORY_SEPARATOR . $iterator->getSubPathname());
+                if (is_link($item->getPathname())) {
+                    symlink(readlink($item->getPathname()), $targetPath);
+                } else {
+                    copy($item, $targetPath);
+                }
             }
         }
     }
@@ -167,10 +179,18 @@ class ComposerOperationsController
 
     private function ensureWritePermissions($path)
     {
-        if (!is_writable($path)) {
+        if (is_link($path)) {
+            $realPath = readlink($path);
+            if (!is_writable($realPath)) {
+                @chmod($realPath, 0777);
+                if (!is_writable($realPath)) {
+                    throw new \Exception("Unable to set write permissions on symlinked path: $path (real path: $realPath)");
+                }
+            }
+        } elseif (!is_writable($path)) {
             @chmod($path, 0777);
             if (!is_writable($path)) {
-                throw new \Exception("Unable to set write permissions on: " . $path);
+                throw new \Exception("Unable to set write permissions on: $path");
             }
         }
     }
