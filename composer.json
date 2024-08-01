@@ -1,8 +1,8 @@
 {
     "name": "startupful/startupful-plugin",
-    "description": "A Filament plugin for managing startups v0.3.2",
+    "description": "A Filament plugin for managing startups v0.3.3",
     "type": "library",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "license": "MIT",
     "autoload": {
         "psr-4": {

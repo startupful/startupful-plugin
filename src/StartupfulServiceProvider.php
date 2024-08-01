@@ -38,13 +38,19 @@ class StartupfulServiceProvider extends PackageServiceProvider
 
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
 
+        $this->app->singleton(PluginFileManager::class, function ($app) {
+            return new PluginFileManager();
+        });
+
         $this->app->singleton(GithubPluginRepository::class, function ($app) {
             return new GithubPluginRepository();
         });
 
-        $this->app->bind(PluginInstallController::class, function ($app) {
-            return new PluginInstallController();
-        });
+        $this->app->when(PluginInstallController::class)
+                  ->needs(PluginFileManager::class)
+                  ->give(function () {
+                      return app(PluginFileManager::class);
+                  });
     }
 
     public function packageRegistered(): void

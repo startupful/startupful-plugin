@@ -3,16 +3,18 @@
 namespace Startupful\StartupfulPlugin\Http\Controllers;
 
 use Startupful\StartupfulPlugin\Models\Plugin;
-use Startupful\StartupfulPlugin\StartupfulPlugin;
-use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessFailedException;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 
 class PluginInstallController
 {
-    public $installationStatus;
-    protected $plugin;
+    protected $composerOperations;
+
+    public function __construct(ComposerOperationsController $composerOperations)
+    {
+        $this->composerOperations = $composerOperations;
+    }
 
     public function installPlugin($plugin): void
     {
@@ -21,7 +23,6 @@ class PluginInstallController
         }
 
         if (!is_array($plugin)) {
-            $this->installationStatus = "Error: Invalid plugin data";
             Notification::make()
                 ->title("Failed to install plugin: Invalid data format")
                 ->danger()
@@ -29,161 +30,57 @@ class PluginInstallController
             return;
         }
 
-        $this->plugin = $plugin;
-
-        $this->installationStatus = "Installing {$plugin['name']}...";
-
         try {
-            $version = $plugin['latest_version'] ?? 'dev-master';
-            $developer = $plugin['package_name'] ?? $plugin['full_name'] ?? '';
-            
-            $this->runComposerRequire($developer);
-            
-            // developer 정보 추가
-            $plugin['developer'] = $developer;
+            $packageName = $plugin['package_name'] ?? $plugin['full_name'] ?? '';
+            $version = $plugin['latest_version'] ?? '*';
 
-            $this->runDefaultInstallationSteps($plugin);
+            // Manually create directory and set permissions
+            $path = base_path("vendor/" . str_replace('/', DIRECTORY_SEPARATOR, $packageName));
+            if (!File::isDirectory($path)) {
+                File::makeDirectory($path, 0755, true);
+            }
+            chmod($path, 0755);
+
+            // Install plugin using Composer
+            $result = $this->composerOperations->installPlugin($packageName, $version);
+            Log::info($result);
+
+            // Run migrations
+            Artisan::call('migrate');
+
+            // Update AdminPanelProvider
+            $this->updateAdminPanelProvider($plugin);
+
+            // Add to installed plugins
             $this->addToInstalledPlugins($plugin);
 
-            $this->installationStatus = "Plugin {$plugin['name']} installed successfully.";
             Notification::make()
                 ->title("Plugin '{$plugin['name']}' installed successfully.")
                 ->success()
                 ->send();
         } catch (\Exception $e) {
+            Log::error("Detailed installation error: " . $e->getMessage());
             $this->handleInstallationError($plugin['name'], $e);
         }
     }
 
-    protected function runDefaultInstallationSteps($plugin): void
-    {
-        $name = $plugin['name'] ?? '';
-        $developer = $plugin['developer'] ?? '';
-        
-        \Log::info("Starting installation steps for {$name}", ['developer' => $developer]);
-
-        try {
-            $providerClass = $this->generateServiceProviderClass($name);
-
-            \Log::info("Generated service provider class: {$providerClass}");
-
-            // 나머지 설치 단계 진행
-            $this->copyMigrationFiles($developer, $name);
-            $this->runMigrations($name);
-            $this->updateAdminPanelProvider($providerClass);
-
-            $this->installationStatus = "Completed installation steps for {$name}";
-            \Log::info("Installation completed for {$name}");
-
-        } catch (\Exception $e) {
-            $this->handleInstallationError($name, $e);
-        }
-    }
-
-    protected function generateServiceProviderClass($name): string
-    {
-        // 특수기호 제거 및 첫 알파벳과 특수기호 앞의 텍스트를 대문자로 변환
-        $name_2 = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
-        return "Startupful\\{$name_2}\\{$name_2}Plugin";
-    }
-
-    protected function runComposerRequire(string $packageName): void
-    {
-        $command = ['composer', 'require', '--no-cache', $packageName];
-        $env = getenv();
-        $env['HOME'] = base_path();
-        $env['COMPOSER_HOME'] = sys_get_temp_dir() . '/.composer';
-
-        $process = new Process($command, base_path(), $env);
-        $process->setTimeout(300);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            throw new ProcessFailedException($process);
-        }
-    }
-
-    private function copyMigrationFiles($developer, $name): void
-    {
-        $possibleMigrationDirectories = [
-            base_path("vendor/{$developer}/database/migrations"),
-            base_path("vendor/{$developer}/src/database/migrations"),
-            base_path("vendor/{$developer}/migrations"),
-        ];
-
-        $migrationFiles = [];
-        foreach ($possibleMigrationDirectories as $directory) {
-            $files = glob($directory . '/*.php');
-            if (!empty($files)) {
-                $migrationFiles = $files;
-                break;
-            }
-        }
-
-        \Log::info("Checking migration files in directories: " . implode(', ', $possibleMigrationDirectories));
-
-        $copiedFiles = [];
-
-        if (!empty($migrationFiles)) {
-            foreach ($migrationFiles as $sourceMigrationPath) {
-                $originalFileName = basename($sourceMigrationPath);
-                $existingFiles = glob(database_path('migrations/*_' . $originalFileName));
-                
-                if (!empty($existingFiles)) {
-                    \Log::info("Migration file already exists, skipping: {$originalFileName}");
-                    continue;
-                }
-
-                $newTimestamp = date('Y_m_d_His');
-                $newFileName = $newTimestamp . '_' . $originalFileName;
-                $destinationMigrationPath = database_path('migrations/' . $newFileName);
-                
-                \Log::info("Copying migration file from: {$sourceMigrationPath} to: {$destinationMigrationPath}");
-                
-                if (copy($sourceMigrationPath, $destinationMigrationPath)) {
-                    \Log::info("Migration file copied successfully with updated timestamp");
-                    $copiedFiles[] = $destinationMigrationPath;
-                } else {
-                    throw new \Exception("Failed to copy migration file from {$sourceMigrationPath} to {$destinationMigrationPath}");
-                }
-            }
-        } else {
-            \Log::warning("No migration files found in any of the possible directories");
-        }
-
-        \Log::info("Copied migration files:", $copiedFiles);
-
-        if (empty($copiedFiles)) {
-            \Log::warning("No new migration files were copied");
-        }
-    }
-
-    private function runMigrations($name): void
-    {
-        \Log::info("Running migrations for {$name}");
-        $output = Artisan::call('migrate', ['--force' => true]);
-        \Log::info("Migration command output: " . Artisan::output());
-
-        if ($output !== 0) {
-            throw new \Exception("Migration failed for {$name}. Output: " . Artisan::output());
-        }
-
-        \Log::info("Migrations completed for {$name}");
-    }
-
     private function updateAdminPanelProvider($className): void
     {
-        \Log::info("Checking if class exists: {$className}");
-
         $shortClassName = $this->getShortClassName($className);
+        $packageName = $this->plugin['package_name'] ?? $this->plugin['full_name'] ?? '';
+        $pluginPath = $this->pluginFileManager->getPluginPath($packageName);
+        
+        $classFile = $pluginPath . '/src/' . $shortClassName . '.php';
+        
+        Log::info("Checking if class file exists: {$classFile}");
 
-        if (class_exists($className)) {
-            \Log::info("Class exists: {$className}. No need to update AdminPanelProvider.php");
+        if (!file_exists($classFile)) {
+            Log::warning("Class file does not exist: {$classFile}. Skipping AdminPanelProvider update.");
             return;
         }
 
         $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
-        \Log::info("Class does not exist. Updating AdminPanelProvider.php at: {$providerPath}");
+        Log::info("Updating AdminPanelProvider.php at: {$providerPath}");
 
         if (!file_exists($providerPath)) {
             throw new \Exception("AdminPanelProvider.php not found at: {$providerPath}");
@@ -196,25 +93,32 @@ class PluginInstallController
 
         if (!str_contains($content, $useStatement)) {
             $content = str_replace("namespace App\Providers\Filament;", "namespace App\Providers\Filament;\n\n{$useStatement}", $content);
-            \Log::info("Use statement added: {$useStatement}");
+            Log::info("Use statement added: {$useStatement}");
         }
 
         if (!str_contains($content, $pluginMethod)) {
-            $content = preg_replace('/(\->login\(\))/', "$1\n            {$pluginMethod}", $content);
-            \Log::info("Plugin method added: {$pluginMethod}");
+            // Look for the ->login() method and add the plugin method after it
+            $pattern = '/(\->login\([^)]*\))/';
+            if (preg_match($pattern, $content, $matches)) {
+                $replacement = $matches[0] . "\n            {$pluginMethod}";
+                $content = preg_replace($pattern, $replacement, $content, 1);
+                Log::info("Plugin method added after ->login(): {$pluginMethod}");
+            } else {
+                Log::warning("Could not find ->login() method. Adding plugin method at the end of panel configuration.");
+                // If ->login() is not found, add the plugin method at the end of the panel configuration
+                $pattern = '/(return\s+\$panel\s*;)/';
+                $replacement = "            {$pluginMethod}\n        $1";
+                $content = preg_replace($pattern, $replacement, $content, 1);
+            }
+        } else {
+            Log::info("Plugin method already exists: {$pluginMethod}");
         }
 
         file_put_contents($providerPath, $content);
-        \Log::info("AdminPanelProvider.php updated successfully");
+        Log::info("AdminPanelProvider.php updated successfully");
     }
 
-    private function getShortClassName($className): string
-    {
-        $parts = explode('\\', $className);
-        return end($parts);
-    }
-
-    protected function addToInstalledPlugins(array $plugin): void
+    private function addToInstalledPlugins(array $plugin): void
     {
         Plugin::create([
             'name' => $plugin['name'],
@@ -228,8 +132,8 @@ class PluginInstallController
 
     private function handleInstallationError($name, \Exception $e): void
     {
-        $this->installationStatus = "Installation failed for {$name}: " . $e->getMessage();
-        \Log::error("Installation failed for {$name}: " . $e->getMessage(), [
+        $errorMessage = "Installation failed for {$name}: " . $e->getMessage();
+        Log::error($errorMessage, [
             'exception' => $e,
             'trace' => $e->getTraceAsString()
         ]);
@@ -238,12 +142,5 @@ class PluginInstallController
             ->body("Error: " . $e->getMessage() . "\nPlease check the logs for more details.")
             ->danger()
             ->send();
-    }
-
-    protected function generateClassName(string $name): string
-    {
-        $name = str_replace('-', ' ', $name);
-        $name = ucwords($name);
-        return str_replace(' ', '', $name);
     }
 }

@@ -6,6 +6,7 @@ use Startupful\StartupfulPlugin\Models\Plugin;
 use Startupful\StartupfulPlugin\StartupfulPlugin;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Artisan;
 
 class PluginUpdateController
 {
@@ -23,9 +24,12 @@ class PluginUpdateController
 
             Log::info("Starting update process for plugin: {$plugin->name}");
 
-            // Update the package using Composer
-            $result = $this->composerOperations->updatePackage($plugin->developer, $latestVersion);
+            // Update the plugin using Composer
+            $result = $this->composerOperations->updatePlugin($plugin->developer);
             Log::info($result);
+
+            // Run migrations
+            Artisan::call('migrate');
 
             // Update plugin record in database
             $this->updatePluginRecord($plugin, $latestVersion);
@@ -65,17 +69,10 @@ class PluginUpdateController
 
     private function clearCaches(): void
     {
-        $this->composerOperations->clearComposerCache();
-        $this->composerOperations->dumpAutoload();
-        // Clear Laravel caches
-        \Artisan::call('config:clear');
-        \Artisan::call('cache:clear');
-        \Artisan::call('route:clear');
-        \Artisan::call('view:clear');
-        \Artisan::call('optimize:clear');
+        Artisan::call('optimize:clear');
     }
 
-    protected function handleUpdateError(string $name, \Exception $e): void
+    private function handleUpdateError(string $name, \Exception $e): void
     {
         $errorMessage = "Update failed for {$name}: " . $e->getMessage();
         Log::error($errorMessage, [
