@@ -149,19 +149,59 @@ class StartupfulInstallCommand extends Command
         $this->runComposerCommand('require joelbutcher/socialstream -W');
 
         $this->info('Running Socialstream installation...');
-        
-        // 미리 정의된 옵션으로 Socialstream 설치
-        $command = [
-            'socialstream:install',
-            '--stack=jetstream',
-            '--framework=livewire',
-            '--dark',
-            '--pest'
+
+        // 사용자 입력을 시뮬레이션하여 Socialstream 설치
+        $command = base_path('artisan');
+        $descriptorspec = [
+            0 => ["pipe", "r"],  // stdin
+            1 => ["pipe", "w"],  // stdout
+            2 => ["pipe", "w"],  // stderr
         ];
+        $process = proc_open("php $command socialstream:install", $descriptorspec, $pipes);
 
-        $this->call('socialstream:install', $command);
+        if (is_resource($process)) {
+            // 선택지에 대한 응답 (순서대로 선택)
+            $inputs = [
+                "\n",  // 첫 번째 질문: 기본값 선택 (Laravel Breeze)
+                "\n",  // 두 번째 질문: Laravel Jetstream 선택 (2번째 옵션)
+                "\n",  // 세 번째 질문: Livewire 선택 (1번째 옵션)
+                "n\n", // API 지원 비활성화
+                "y\n", // Dark mode 활성화
+                "n\n", // Email verification 비활성화
+                "n\n", // Team support 비활성화
+                "\n",  // Pest 선택 (2번째 옵션)
+            ];
 
-        $this->info('Socialstream installed successfully with predefined options.');
+            foreach ($inputs as $input) {
+                fwrite($pipes[0], $input);
+                fflush($pipes[0]);
+                // 각 입력 후 잠시 대기
+                usleep(500000);  // 0.5초 대기
+            }
+
+            fclose($pipes[0]);
+
+            // 출력 읽기
+            $output = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+
+            // 오류 출력 읽기
+            $errors = stream_get_contents($pipes[2]);
+            fclose($pipes[2]);
+
+            // 프로세스 종료
+            $return_value = proc_close($process);
+
+            if ($return_value !== 0) {
+                $this->error("Socialstream installation failed: $errors");
+                return;
+            }
+
+            $this->info($output);
+            $this->info('Socialstream and Jetstream installed successfully with predefined options.');
+        } else {
+            $this->error('Failed to start the Socialstream installation process.');
+        }
     }
 
     private function installOpenAI()
