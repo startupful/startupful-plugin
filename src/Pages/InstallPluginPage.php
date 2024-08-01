@@ -52,6 +52,6 @@ class InstallPluginPage extends Page
     {
         $installController = StartupfulPlugin::getInstallController();
         $installController->installPlugin($plugin);
-        $this->installationStatus = $installController->installationStatus;
+        $this->installationStatus = $installController->getInstallationStatus()[$plugin['name']] ?? null;
     }
 }

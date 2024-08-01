@@ -38,6 +38,9 @@ class PluginUninstallController
             // Remove from database
             $this->deletePluginFromDatabase($plugin);
 
+            Artisan::call('optimize:clear');
+            Artisan::call('composer:dump-autoload');
+
             Notification::make()
                 ->title("Plugin '{$plugin->name}' uninstalled successfully.")
                 ->success()
@@ -51,9 +54,6 @@ class PluginUninstallController
 
     protected function removePluginFromAdminPanelProvider(Plugin $plugin): void
     {
-        $className = "Startupful\\{$this->generateClassName($plugin->name)}\\{$this->generateClassName($plugin->name)}Plugin";
-        $shortClassName = $this->getShortClassName($className);
-
         $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
         if (!file_exists($providerPath)) {
             throw new \Exception("AdminPanelProvider.php not found at: {$providerPath}");
@@ -61,20 +61,20 @@ class PluginUninstallController
 
         $content = file_get_contents($providerPath);
 
-        $useStatement = "use {$className};";
-        $pluginMethod = "->plugin({$shortClassName}::make())";
+        // 플러그인 클래스 이름 생성
+        $className = "Startupful\\{$this->generateClassName($plugin->name)}\\{$this->generateClassName($plugin->name)}Plugin";
+        $shortClassName = $this->getShortClassName($className);
 
-        // Remove use statement
-        $content = str_replace($useStatement . "\n", '', $content);
-        Log::info("Use statement removed: {$useStatement}");
+        // use 문 제거
+        $usePattern = '/use\s+' . preg_quote($className, '/') . '\s*;/';
+        $content = preg_replace($usePattern, '', $content);
 
-        // Remove plugin method
-        $pattern = '/\s*' . preg_quote($pluginMethod, '/') . '/';
-        $content = preg_replace($pattern, '', $content);
-        Log::info("Plugin method removed: {$pluginMethod}");
+        // ->plugin() 메서드 호출 제거
+        $pluginPattern = '/\s*->plugin\(\s*' . preg_quote($shortClassName, '/') . '::make\(\)\s*\)/';
+        $content = preg_replace($pluginPattern, '', $content);
 
         file_put_contents($providerPath, $content);
-        Log::info("AdminPanelProvider.php updated successfully");
+        Log::info("AdminPanelProvider.php updated successfully for plugin: {$plugin->name}");
     }
 
     private function clearCaches(): void

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\File;
 class PluginInstallController
 {
     protected $composerOperations;
+    protected $installationStatus = [];
 
     public function __construct(ComposerOperationsController $composerOperations)
     {
@@ -55,31 +56,24 @@ class PluginInstallController
             // Add to installed plugins
             $this->addToInstalledPlugins($plugin);
 
+            $this->installationStatus[$plugin['name']] = 'success';
+
             Notification::make()
                 ->title("Plugin '{$plugin['name']}' installed successfully.")
                 ->success()
                 ->send();
         } catch (\Exception $e) {
+            $this->installationStatus[$plugin['name']] = 'failed';
             Log::error("Detailed installation error: " . $e->getMessage());
             $this->handleInstallationError($plugin['name'], $e);
         }
     }
 
-    private function updateAdminPanelProvider($className): void
+    private function updateAdminPanelProvider($plugin): void
     {
+        $className = "Startupful\\{$this->generateClassName($plugin['name'])}\\{$this->generateClassName($plugin['name'])}Plugin";
         $shortClassName = $this->getShortClassName($className);
-        $packageName = $this->plugin['package_name'] ?? $this->plugin['full_name'] ?? '';
-        $pluginPath = $this->pluginFileManager->getPluginPath($packageName);
         
-        $classFile = $pluginPath . '/src/' . $shortClassName . '.php';
-        
-        Log::info("Checking if class file exists: {$classFile}");
-
-        if (!file_exists($classFile)) {
-            Log::warning("Class file does not exist: {$classFile}. Skipping AdminPanelProvider update.");
-            return;
-        }
-
         $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
         Log::info("Updating AdminPanelProvider.php at: {$providerPath}");
 
@@ -143,5 +137,23 @@ class PluginInstallController
             ->body("Error: " . $e->getMessage() . "\nPlease check the logs for more details.")
             ->danger()
             ->send();
+    }
+
+    private function getShortClassName($className): string
+    {
+        $parts = explode('\\', $className);
+        return end($parts);
+    }
+
+    private function generateClassName(string $name): string
+    {
+        $name = str_replace(['-', '_'], ' ', $name);
+        $name = ucwords($name);
+        return str_replace(' ', '', $name);
+    }
+
+    public function getInstallationStatus(): array
+    {
+        return $this->installationStatus;
     }
 }
