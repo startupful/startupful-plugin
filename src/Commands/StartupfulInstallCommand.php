@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 use Startupful\StartupfulPlugin\Models\Plugin;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\Process\Process;
 
 class StartupfulInstallCommand extends Command
 {
@@ -183,7 +184,7 @@ class StartupfulInstallCommand extends Command
             $this->info('Startupful Plugin is already installed. Skipping...');
             return;
         }
-        
+
         // Original installation process...
         // Publish migrations
         $this->call('vendor:publish', [
