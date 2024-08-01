@@ -35,6 +35,8 @@ class StartupfulServiceProvider extends PackageServiceProvider
     {
         parent::packageBooted();
 
+        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+
         $this->app->singleton(GithubPluginRepository::class, function ($app) {
             return new GithubPluginRepository();
         });
