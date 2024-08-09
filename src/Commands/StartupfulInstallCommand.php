@@ -38,6 +38,7 @@ class StartupfulInstallCommand extends Command
         $this->updateWebRoutes();
         $this->updateAppServiceProvider();
         $this->updateBootstrapApp();
+        $this->updateHttpKernel();
 
         $version = $this->getCurrentVersion();
 
@@ -200,26 +201,56 @@ class StartupfulInstallCommand extends Command
     private function updateBootstrapApp(): void
     {
         $path = base_path('bootstrap/app.php');
-
+    
         if (!File::exists($path)) {
             $this->warn('bootstrap/app.php not found.');
+            return;
+        }
+    
+        $content = File::get($path);
+    
+        if (!str_contains($content, 'SetLocale::class')) {
+            $addition = "\n\$app->middleware([
+        // ... other middleware
+        \\App\\Http\\Middleware\\SetLocale::class,
+    ]);\n";
+    
+            // Laravel 10 버전에 맞는 코드 추가
+            $laravelTenAddition = "\n\$app->alias('middleware', Illuminate\Contracts\Http\Kernel::class);
+    \$app->make('middleware')->prependMiddleware(\\App\\Http\\Middleware\\SetLocale::class);\n";
+    
+            $content .= $addition . $laravelTenAddition;
+    
+            File::put($path, $content);
+            $this->info('Updated bootstrap/app.php with SetLocale middleware for both Laravel versions.');
+        } else {
+            $this->info('SetLocale middleware already exists in bootstrap/app.php.');
+        }
+    }
+
+    private function updateHttpKernel(): void
+    {
+        $path = app_path('Http/Kernel.php');
+
+        if (!File::exists($path)) {
+            $this->warn('Http/Kernel.php not found.');
             return;
         }
 
         $content = File::get($path);
 
         if (!str_contains($content, 'SetLocale::class')) {
-            $addition = "\n\$app->middleware([
-        // ... other middleware
-        \\App\\Http\\Middleware\\SetLocale::class,
-    ]);\n";
-
-            $content .= $addition;
+            $addition = "\n        \\App\\Http\\Middleware\\SetLocale::class,";
+            $content = preg_replace(
+                '/(protected \$middleware = \[.*?)\n    \];/s',
+                "$1$addition\n    ];",
+                $content
+            );
 
             File::put($path, $content);
-            $this->info('Updated bootstrap/app.php with SetLocale middleware.');
+            $this->info('Updated Http/Kernel.php with SetLocale middleware.');
         } else {
-            $this->info('SetLocale middleware already exists in bootstrap/app.php.');
+            $this->info('SetLocale middleware already exists in Http/Kernel.php.');
         }
     }
 
