@@ -122,23 +122,40 @@ class StartupfulInstallCommand extends Command
         $sourcePath = $this->resourcePath . 'navigation-menu-addition.blade.php';
         $destinationPath = resource_path('views/navigation-menu.blade.php');
 
-        if (File::exists($destinationPath)) {
-            $content = File::get($destinationPath);
-            $addition = File::get($sourcePath);
+        $this->info("Source path: $sourcePath");
+        $this->info("Destination path: $destinationPath");
 
-            if (!str_contains($content, 'x-dropdown align="right" width="48"')) {
-                $updatedContent = str_replace(
-                    '<!-- Teams Dropdown -->',
-                    $addition . "\n\n            <!-- Teams Dropdown -->",
-                    $content
-                );
+        if (!File::exists($sourcePath)) {
+            $this->error("Source file does not exist: $sourcePath");
+            return;
+        }
+
+        if (!File::exists($destinationPath)) {
+            $this->error("Destination file does not exist: $destinationPath");
+            return;
+        }
+
+        $content = File::get($destinationPath);
+        $addition = File::get($sourcePath);
+
+        $this->info("Current content length: " . strlen($content));
+        $this->info("Addition content length: " . strlen($addition));
+
+        if (!str_contains($content, trim($addition))) {
+            $updatedContent = str_replace(
+                '<!-- Teams Dropdown -->',
+                $addition . "\n\n            <!-- Teams Dropdown -->",
+                $content
+            );
+
+            if ($content === $updatedContent) {
+                $this->error("Failed to insert the new content. The replacement string might not exist.");
+            } else {
                 File::put($destinationPath, $updatedContent);
                 $this->info('Updated navigation-menu.blade.php with language dropdown.');
-            } else {
-                $this->info('Language dropdown already exists in navigation-menu.blade.php.');
             }
         } else {
-            $this->warn('navigation-menu.blade.php not found. Please add the language dropdown manually.');
+            $this->info('Language dropdown already exists in navigation-menu.blade.php.');
         }
     }
 
