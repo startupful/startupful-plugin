@@ -36,6 +36,8 @@ class StartupfulInstallCommand extends Command
         $this->copyLanguageController();
         $this->updateNavigationMenu();
         $this->updateWebRoutes();
+        $this->updateAppServiceProvider();
+        $this->updateBootstrapApp();
 
         $version = $this->getCurrentVersion();
 
@@ -122,24 +124,13 @@ class StartupfulInstallCommand extends Command
         $sourcePath = $this->resourcePath . 'navigation-menu-addition.blade.php';
         $destinationPath = resource_path('views/navigation-menu.blade.php');
 
-        $this->info("Source path: $sourcePath");
-        $this->info("Destination path: $destinationPath");
-
-        if (!File::exists($sourcePath)) {
-            $this->error("Source file does not exist: $sourcePath");
-            return;
-        }
-
-        if (!File::exists($destinationPath)) {
-            $this->error("Destination file does not exist: $destinationPath");
+        if (!File::exists($sourcePath) || !File::exists($destinationPath)) {
+            $this->warn('Required files for navigation menu update not found.');
             return;
         }
 
         $content = File::get($destinationPath);
         $addition = File::get($sourcePath);
-
-        $this->info("Current content length: " . strlen($content));
-        $this->info("Addition content length: " . strlen($addition));
 
         if (!str_contains($content, trim($addition))) {
             $updatedContent = str_replace(
@@ -148,12 +139,8 @@ class StartupfulInstallCommand extends Command
                 $content
             );
 
-            if ($content === $updatedContent) {
-                $this->error("Failed to insert the new content. The replacement string might not exist.");
-            } else {
-                File::put($destinationPath, $updatedContent);
-                $this->info('Updated navigation-menu.blade.php with language dropdown.');
-            }
+            File::put($destinationPath, $updatedContent);
+            $this->info('Updated navigation-menu.blade.php with language dropdown.');
         } else {
             $this->info('Language dropdown already exists in navigation-menu.blade.php.');
         }
@@ -176,6 +163,63 @@ class StartupfulInstallCommand extends Command
             }
         } else {
             $this->warn('routes/web.php not found. Please add the language switch route manually.');
+        }
+    }
+
+    private function updateAppServiceProvider(): void
+    {
+        $path = app_path('Providers/AppServiceProvider.php');
+
+        if (!File::exists($path)) {
+            $this->warn('AppServiceProvider.php not found.');
+            return;
+        }
+
+        $content = File::get($path);
+
+        if (!str_contains($content, '$this->app->singleton(\'locale\'')) {
+            $addition = "\n        \$this->app->singleton('locale', function (\$app) {
+                \$locale = session('locale', config('app.locale'));
+                app()->setLocale(\$locale);
+                return \$locale;
+            });\n";
+
+            $content = preg_replace(
+                '/(public function boot\(\).*?\{)/s',
+                "$1\n$addition",
+                $content
+            );
+
+            File::put($path, $content);
+            $this->info('Updated AppServiceProvider.php with locale singleton.');
+        } else {
+            $this->info('Locale singleton already exists in AppServiceProvider.php.');
+        }
+    }
+
+    private function updateBootstrapApp(): void
+    {
+        $path = base_path('bootstrap/app.php');
+
+        if (!File::exists($path)) {
+            $this->warn('bootstrap/app.php not found.');
+            return;
+        }
+
+        $content = File::get($path);
+
+        if (!str_contains($content, 'SetLocale::class')) {
+            $addition = "\n\$app->middleware([
+        // ... other middleware
+        \\App\\Http\\Middleware\\SetLocale::class,
+    ]);\n";
+
+            $content .= $addition;
+
+            File::put($path, $content);
+            $this->info('Updated bootstrap/app.php with SetLocale middleware.');
+        } else {
+            $this->info('SetLocale middleware already exists in bootstrap/app.php.');
         }
     }
 
