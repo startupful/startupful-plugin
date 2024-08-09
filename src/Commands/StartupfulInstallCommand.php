@@ -35,6 +35,7 @@ class StartupfulInstallCommand extends Command
         $this->copySetLocaleMiddleware();
         $this->copyLanguageController();
         $this->updateNavigationMenu();
+        $this->updateWebRoutes();
 
         $version = $this->getCurrentVersion();
 
@@ -138,6 +139,26 @@ class StartupfulInstallCommand extends Command
             }
         } else {
             $this->warn('navigation-menu.blade.php not found. Please add the language dropdown manually.');
+        }
+    }
+
+    private function updateWebRoutes(): void
+    {
+        $routesPath = base_path('routes/web.php');
+        
+        if (File::exists($routesPath)) {
+            $content = File::get($routesPath);
+            
+            if (!str_contains($content, 'LanguageController')) {
+                $addition = "\nuse App\Http\Controllers\LanguageController;\n\nRoute::middleware(['web'])->group(function () {\n    Route::get('language/{locale}', [LanguageController::class, 'switch'])->name('language.switch');\n});\n";
+                
+                File::append($routesPath, $addition);
+                $this->info('Updated routes/web.php with language switch route.');
+            } else {
+                $this->info('Language switch route already exists in routes/web.php.');
+            }
+        } else {
+            $this->warn('routes/web.php not found. Please add the language switch route manually.');
         }
     }
 
