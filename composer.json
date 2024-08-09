@@ -20,8 +20,8 @@
         "filament/filament": "^2.0|^3.0", 
         "spatie/laravel-package-tools": "^1.13.0",
         "filament/notifications": "^2.0|^3.0",
-        "laravel/jetstream": "^5.1",
-        "joelbutcher/socialstream": "^6.0"
+        "laravel/jetstream": "^4.3|^5.1",
+        "joelbutcher/socialstream": "^5.5|^6.0"
     },
     "extra": {
         "laravel": {
