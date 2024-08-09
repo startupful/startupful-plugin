@@ -59,4 +59,11 @@ class StartupfulServiceProvider extends PackageServiceProvider
 
         $this->app->scoped(StartupfulPlugin::class, fn () => StartupfulPlugin::make());
     }
+
+    public function boot()
+    {
+        parent::boot();
+        
+        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'startupful-plugin');
+    }
 }
