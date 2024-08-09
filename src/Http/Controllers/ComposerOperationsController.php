@@ -18,7 +18,7 @@ class ComposerOperationsController
     public function updatePlugin($packageName): string
     {
         $this->prepareDirectory($packageName);
-        return $this->runComposerCommand(['update', $packageName, '--prefer-source']);
+        return $this->runComposerCommand(['require', $packageName, '--prefer-source']);
     }
 
     public function removePlugin($packageName): string

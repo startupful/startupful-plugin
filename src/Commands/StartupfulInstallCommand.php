@@ -15,15 +15,17 @@ class StartupfulInstallCommand extends Command
 
     public $description = 'Install the Startupful Plugin';
 
-    protected $resourcePath = __DIR__ . '/../../../resources/file/';
+    protected $resourcePath = __DIR__ . '/../../resources/file/';
 
     public function handle()
     {
         $this->info('Installing Startupful Plugin...');
 
-        $this->publishMigrations();
-        $this->runMigrations();
-        $this->updateAdminPanelProvider();
+        // Publish migrations
+        $this->call('vendor:publish', [
+            '--provider' => 'Startupful\StartupfulPlugin\StartupfulServiceProvider',
+            '--tag' => 'startupful-migrations'
+        ]);
 
         // Run migrations
         $this->call('migrate');
@@ -146,7 +148,7 @@ class StartupfulInstallCommand extends Command
             File::copy($sourcePath, $destinationPath);
             $this->info("Copied $fileName to " . $destinationPath);
         } else {
-            $this->error("Source file for $fileName not found.");
+            $this->warn("Source file for $fileName not found at $sourcePath.");
         }
     }
 
