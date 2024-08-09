@@ -63,7 +63,11 @@ class StartupfulServiceProvider extends PackageServiceProvider
     public function boot()
     {
         parent::boot();
-        
-        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'startupful-plugin');
+
+        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'startupful');
+
+        $this->publishes([
+            __DIR__.'/../resources/lang' => resource_path('lang/vendor/startupful'),
+        ], 'startupful-lang');
     }
 }

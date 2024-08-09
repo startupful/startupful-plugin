@@ -27,6 +27,8 @@ class StartupfulInstallCommand extends Command
             '--tag' => 'startupful-migrations'
         ]);
 
+        $this->callSilent('vendor:publish', ['--tag' => 'startupful-lang']);
+
         // Run migrations
         $this->call('migrate');
 
@@ -37,7 +39,6 @@ class StartupfulInstallCommand extends Command
         $this->updateNavigationMenu();
         $this->updateWebRoutes();
         $this->updateAppServiceProvider();
-        $this->updateBootstrapApp();
         $this->updateHttpKernel();
 
         $version = $this->getCurrentVersion();
@@ -91,17 +92,54 @@ class StartupfulInstallCommand extends Command
         $configPath = config_path('app.php');
         $config = file_get_contents($configPath);
 
-        if (!str_contains($config, "'available_locales'")) {
-            $newConfig = str_replace(
-                "'locale' => 'en',",
-                "'locale' => 'en',\n\n    'available_locales' => ['en', 'ko', 'de', 'fr', 'hi', 'ja', 'pt', 'th', 'tl', 'zh'],",
-                $config
-            );
-            file_put_contents($configPath, $newConfig);
-            $this->info('Updated config/app.php with available locales.');
-        } else {
-            $this->info('Available locales already exist in config/app.php.');
+        $replacements = [
+            "'locale' => 'en'" => "'locale' => env('APP_LOCALE', 'en')",
+            "'fallback_locale' => 'en'" => "'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en')",
+            "'faker_locale' => 'en_US'" => "'faker_locale' => env('APP_FAKER_LOCALE', 'en_US')",
+        ];
+
+        $newConfig = $config;
+        foreach ($replacements as $search => $replace) {
+            $newConfig = str_replace($search, $replace, $newConfig);
         }
+
+        if (!str_contains($newConfig, "'available_locales'")) {
+            $newConfig = str_replace(
+                "'locale' => env('APP_LOCALE', 'en'),",
+                "'locale' => env('APP_LOCALE', 'en'),\n\n    'available_locales' => ['en', 'ko', 'de', 'fr', 'hi', 'ja', 'pt', 'th', 'tl', 'zh'],",
+                $newConfig
+            );
+        }
+
+        if ($newConfig !== $config) {
+            file_put_contents($configPath, $newConfig);
+            $this->info('Updated config/app.php with environment variables and available locales.');
+        } else {
+            $this->info('Config/app.php is already up to date.');
+        }
+
+        $this->updateEnvFile();
+    }
+
+    private function updateEnvFile(): void
+    {
+        $envPath = base_path('.env');
+        $env = file_get_contents($envPath);
+
+        $envUpdates = [
+            'APP_LOCALE' => 'en',
+            'APP_FALLBACK_LOCALE' => 'en',
+            'APP_FAKER_LOCALE' => 'en_US',
+        ];
+
+        foreach ($envUpdates as $key => $value) {
+            if (!preg_match("/^{$key}=/m", $env)) {
+                $env .= "\n{$key}={$value}";
+            }
+        }
+
+        file_put_contents($envPath, $env);
+        $this->info('Updated .env file with new locale variables.');
     }
 
     private function copySetLocaleMiddleware(): void
@@ -178,9 +216,12 @@ class StartupfulInstallCommand extends Command
 
         $content = File::get($path);
 
-        if (!str_contains($content, '$this->app->singleton(\'locale\'')) {
-            $addition = "\n        \$this->app->singleton('locale', function (\$app) {
-                \$locale = session('locale', config('app.locale'));
+        if (!str_contains($content, '$this->app->bind(\'locale\'')) {
+            $addition = "\n        \$this->app->bind('locale', function (\$app) {
+                \$locale = request()->cookie('locale') ?? session('locale') ?? config('app.locale');
+                if (!in_array(\$locale, config('app.available_locales'))) {
+                    \$locale = config('app.fallback_locale');
+                }
                 app()->setLocale(\$locale);
                 return \$locale;
             });\n";
@@ -192,39 +233,9 @@ class StartupfulInstallCommand extends Command
             );
 
             File::put($path, $content);
-            $this->info('Updated AppServiceProvider.php with locale singleton.');
+            $this->info('Updated AppServiceProvider.php with locale binding.');
         } else {
-            $this->info('Locale singleton already exists in AppServiceProvider.php.');
-        }
-    }
-
-    private function updateBootstrapApp(): void
-    {
-        $path = base_path('bootstrap/app.php');
-    
-        if (!File::exists($path)) {
-            $this->warn('bootstrap/app.php not found.');
-            return;
-        }
-    
-        $content = File::get($path);
-    
-        if (!str_contains($content, 'SetLocale::class')) {
-            $addition = "\n\$app->middleware([
-        // ... other middleware
-        \\App\\Http\\Middleware\\SetLocale::class,
-    ]);\n";
-    
-            // Laravel 10 버전에 맞는 코드 추가
-            $laravelTenAddition = "\n\$app->alias('middleware', Illuminate\Contracts\Http\Kernel::class);
-    \$app->make('middleware')->prependMiddleware(\\App\\Http\\Middleware\\SetLocale::class);\n";
-    
-            $content .= $addition . $laravelTenAddition;
-    
-            File::put($path, $content);
-            $this->info('Updated bootstrap/app.php with SetLocale middleware for both Laravel versions.');
-        } else {
-            $this->info('SetLocale middleware already exists in bootstrap/app.php.');
+            $this->info('Locale binding already exists in AppServiceProvider.php.');
         }
     }
 
@@ -240,15 +251,15 @@ class StartupfulInstallCommand extends Command
         $content = File::get($path);
 
         if (!str_contains($content, 'SetLocale::class')) {
-            $addition = "\n        \\App\\Http\\Middleware\\SetLocale::class,";
+            $addition = "\n            \\App\\Http\\Middleware\\SetLocale::class,";
             $content = preg_replace(
-                '/(protected \$middleware = \[.*?)\n    \];/s',
-                "$1$addition\n    ];",
+                "/(protected \$middlewareGroups = \[.*?'web' => \[.*?)\n        \],/s",
+                "$1$addition\n        ],",
                 $content
             );
 
             File::put($path, $content);
-            $this->info('Updated Http/Kernel.php with SetLocale middleware.');
+            $this->info('Updated Http/Kernel.php with SetLocale middleware in web group.');
         } else {
             $this->info('SetLocale middleware already exists in Http/Kernel.php.');
         }
