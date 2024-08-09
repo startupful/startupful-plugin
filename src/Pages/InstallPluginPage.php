@@ -8,6 +8,7 @@ use Filament\Forms\Form;
 use Startupful\StartupfulPlugin\StartupfulPlugin;
 use Illuminate\Support\Collection;
 use Startupful\StartupfulPlugin\Http\Controllers\PluginInstallController;
+use Illuminate\Support\Facades\DB;
 
 class InstallPluginPage extends Page
 {
@@ -48,10 +49,48 @@ class InstallPluginPage extends Page
         $this->plugins = collect($results);
     }
 
-    public function installPlugin($plugin): void
+    public function installPlugin(string $pluginName): void
     {
+        $plugin = $this->plugins->firstWhere('name', $pluginName);
+        if (!$plugin) {
+            $this->installationStatus = "Plugin not found: $pluginName";
+            return;
+        }
+
         $installController = StartupfulPlugin::getInstallController();
         $installController->installPlugin($plugin);
-        $this->installationStatus = $installController->getInstallationStatus()[$plugin['name']] ?? null;
+        $this->installationStatus = $installController->getInstallationStatus()[$pluginName] ?? null;
+        
+        $this->refreshPlugins();
+    }
+
+    public function uninstallPlugin(string $pluginName): void
+    {
+        $installController = StartupfulPlugin::getInstallController();
+        $installController->uninstallPlugin($pluginName);
+        $this->installationStatus = $installController->getUninstallationStatus()[$pluginName] ?? null;
+        
+        $this->refreshPlugins();
+    }
+
+    private function refreshPlugins(): void
+    {
+        $plugins = StartupfulPlugin::getGithubRepo()->getStartupfulPlugins();
+        $this->plugins = $this->formatPlugins($plugins);
+    }
+
+    private function formatPlugins(array $plugins): Collection
+    {
+        $installedPlugins = $this->getInstalledPlugins();
+
+        return collect($plugins)->map(function ($plugin) use ($installedPlugins) {
+            $plugin['installed'] = $installedPlugins->contains('name', $plugin['name']);
+            return $plugin;
+        });
+    }
+
+    private function getInstalledPlugins(): Collection
+    {
+        return DB::table('plugins')->select('name')->get();
     }
 }

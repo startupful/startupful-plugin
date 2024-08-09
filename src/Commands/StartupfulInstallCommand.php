@@ -8,7 +8,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 use Startupful\StartupfulPlugin\Models\Plugin;
 use Illuminate\Support\Facades\Schema;
-use Symfony\Component\Process\Process;
 
 class StartupfulInstallCommand extends Command
 {
@@ -16,39 +15,160 @@ class StartupfulInstallCommand extends Command
 
     public $description = 'Install the Startupful Plugin';
 
+    protected $resourcePath = __DIR__ . '/../../../resources/file/';
+
     public function handle()
     {
         $this->info('Installing Startupful Plugin...');
 
-        // Publish migrations
-        $this->call('vendor:publish', [
-            '--provider' => 'Startupful\StartupfulPlugin\StartupfulServiceProvider',
-            '--tag' => 'startupful-migrations'
-        ]);
+        $this->publishMigrations();
+        $this->runMigrations();
+        $this->updateAdminPanelProvider();
 
         // Run migrations
         $this->call('migrate');
 
-        // Install Filament
-        $this->installFilament();
+        // New steps
+        $this->updateConfigApp();
+        $this->copySetLocaleMiddleware();
+        $this->copyLanguageController();
+        $this->updateNavigationMenu();
 
-        // Install Socialstream
-        $this->installSocialstream();
+        $version = $this->getCurrentVersion();
 
-        // Install OpenAI
-        $this->installOpenAI();
+        // Check if the plugins table exists
+        if (Schema::hasTable('plugins')) {
+            // Add Startupful Plugin to the plugins table
+            Plugin::updateOrCreate(
+                ['name' => 'startupful-plugin'],
+                [
+                    'version' => 'v' . ltrim($version, 'v'),
+                    'description' => 'Core plugin for Startupful',
+                    'developer' => 'startupful/startupful-plugin',
+                    'is_active' => true,
+                    'is_core' => true,
+                    'installed_at' => now(),
+                ]
+            );
 
-        // Original Startupful Plugin installation process
-        $this->installStartupfulPlugin();
+            $this->info('Startupful Plugin has been installed successfully.');
+        } else {
+            $this->error('The plugins table does not exist. Migration may have failed.');
+            $this->info('Trying to run migrations manually...');
+            
+            // Force run migrations
+            $this->call('migrate', ['--force' => true]);
+            
+            if (Schema::hasTable('plugins')) {
+                $this->info('Migrations ran successfully.');
+                // Add Startupful Plugin to the plugins table
+                Plugin::updateOrCreate(
+                    ['name' => 'startupful-plugin'],
+                    [
+                        'version' => 'v' . ltrim($version, 'v'),
+                        'description' => 'Core plugin for Startupful',
+                        'developer' => 'Startupful',
+                        'is_active' => true,
+                        'is_core' => true,
+                        'installed_at' => now(),
+                    ]
+                );
+                $this->info('Startupful Plugin has been installed successfully.');
+            } else {
+                $this->error('Failed to create the plugins table. Please check your database configuration and migration files.');
+            }
+        }
+    }
 
-        $this->info('All installations completed successfully.');
+    private function updateConfigApp(): void
+    {
+        $configPath = config_path('app.php');
+        $config = file_get_contents($configPath);
+
+        if (!str_contains($config, "'available_locales'")) {
+            $newConfig = str_replace(
+                "'locale' => 'en',",
+                "'locale' => 'en',\n\n    'available_locales' => ['en', 'ko', 'de', 'fr', 'hi', 'ja', 'pt', 'th', 'tl', 'zh'],",
+                $config
+            );
+            file_put_contents($configPath, $newConfig);
+            $this->info('Updated config/app.php with available locales.');
+        } else {
+            $this->info('Available locales already exist in config/app.php.');
+        }
+    }
+
+    private function copySetLocaleMiddleware(): void
+    {
+        $sourcePath = $this->resourcePath . 'SetLocale.php';
+        $destinationPath = app_path('Http/Middleware/SetLocale.php');
+        
+        $this->copyFile($sourcePath, $destinationPath, 'SetLocale middleware');
+    }
+
+    private function copyLanguageController(): void
+    {
+        $sourcePath = $this->resourcePath . 'LanguageController.php';
+        $destinationPath = app_path('Http/Controllers/LanguageController.php');
+        
+        $this->copyFile($sourcePath, $destinationPath, 'LanguageController');
+    }
+
+    private function updateNavigationMenu(): void
+    {
+        $sourcePath = $this->resourcePath . 'navigation-menu-addition.blade.php';
+        $destinationPath = resource_path('views/navigation-menu.blade.php');
+
+        if (File::exists($destinationPath)) {
+            $content = File::get($destinationPath);
+            $addition = File::get($sourcePath);
+
+            if (!str_contains($content, 'x-dropdown align="right" width="48"')) {
+                $updatedContent = str_replace(
+                    '<!-- Teams Dropdown -->',
+                    $addition . "\n\n            <!-- Teams Dropdown -->",
+                    $content
+                );
+                File::put($destinationPath, $updatedContent);
+                $this->info('Updated navigation-menu.blade.php with language dropdown.');
+            } else {
+                $this->info('Language dropdown already exists in navigation-menu.blade.php.');
+            }
+        } else {
+            $this->warn('navigation-menu.blade.php not found. Please add the language dropdown manually.');
+        }
+    }
+
+    private function copyFile($sourcePath, $destinationPath, $fileName): void
+    {
+        if (File::exists($sourcePath)) {
+            File::ensureDirectoryExists(dirname($destinationPath));
+            File::copy($sourcePath, $destinationPath);
+            $this->info("Copied $fileName to " . $destinationPath);
+        } else {
+            $this->error("Source file for $fileName not found.");
+        }
+    }
+
+    private function showAdditionalInstructions(): void
+    {
+        $this->info('Please add the following route to your routes/web.php file:');
+        $this->info("Route::get('language/{locale}', [App\\Http\\Controllers\\LanguageController::class, 'switch'])->name('language.switch');");
+
+        $this->info('Please add SetLocale middleware to your app/Http/Kernel.php file:');
+        $this->info("protected \$middlewareGroups = [
+    'web' => [
+        // ...
+        \\App\\Http\\Middleware\\SetLocale::class,
+    ],
+];");
     }
 
     private function getCurrentVersion(): string
     {
         $composerJson = File::get(__DIR__ . '/../../composer.json');
         $composerData = json_decode($composerJson, true);
-        return $composerData['version'] ?? '1.0.0';  // 기본값으로 1.0.0 사용
+        return $composerData['version'] ?? '0.1.0';  // 기본값으로 1.0.0 사용
     }
 
     protected function publishMigrations(): void
@@ -122,171 +242,5 @@ class StartupfulInstallCommand extends Command
         } else {
             $this->warn('AdminPanelProvider.php not found. Please add the plugin manually.');
         }
-    }
-
-    private function installFilament()
-    {
-        if (class_exists(\Filament\FilamentServiceProvider::class)) {
-            $this->info('Filament is already installed. Skipping...');
-            return;
-        }
-
-        $this->info('Installing Filament...');
-        $this->runComposerCommand('require filament/filament');
-
-        $this->info('Creating Filament user...');
-        $this->call('make:filament-user');
-    }
-
-    private function installSocialstream()
-    {
-        if (class_exists(\JoelButcher\Socialstream\SocialstreamServiceProvider::class)) {
-            $this->info('Socialstream is already installed. Skipping...');
-            return;
-        }
-
-        $this->info('Installing Socialstream...');
-        $this->runComposerCommand('require joelbutcher/socialstream -W');
-
-        $this->info('Running Socialstream installation...');
-
-        // 사용자 입력을 시뮬레이션하여 Socialstream 설치
-        $command = base_path('artisan');
-        $descriptorspec = [
-            0 => ["pipe", "r"],  // stdin
-            1 => ["pipe", "w"],  // stdout
-            2 => ["pipe", "w"],  // stderr
-        ];
-        $process = proc_open("php $command socialstream:install", $descriptorspec, $pipes);
-
-        if (is_resource($process)) {
-            // 선택지에 대한 응답 (순서대로 선택)
-            $inputs = [
-                "\n",  // 첫 번째 질문: 기본값 선택 (Laravel Breeze)
-                "\n",  // 두 번째 질문: Laravel Jetstream 선택 (2번째 옵션)
-                "\n",  // 세 번째 질문: Livewire 선택 (1번째 옵션)
-                "n\n", // API 지원 비활성화
-                "y\n", // Dark mode 활성화
-                "n\n", // Email verification 비활성화
-                "n\n", // Team support 비활성화
-                "\n",  // Pest 선택 (2번째 옵션)
-            ];
-
-            foreach ($inputs as $input) {
-                fwrite($pipes[0], $input);
-                fflush($pipes[0]);
-                // 각 입력 후 잠시 대기
-                usleep(500000);  // 0.5초 대기
-            }
-
-            fclose($pipes[0]);
-
-            // 출력 읽기
-            $output = stream_get_contents($pipes[1]);
-            fclose($pipes[1]);
-
-            // 오류 출력 읽기
-            $errors = stream_get_contents($pipes[2]);
-            fclose($pipes[2]);
-
-            // 프로세스 종료
-            $return_value = proc_close($process);
-
-            if ($return_value !== 0) {
-                $this->error("Socialstream installation failed: $errors");
-                return;
-            }
-
-            $this->info($output);
-            $this->info('Socialstream and Jetstream installed successfully with predefined options.');
-        } else {
-            $this->error('Failed to start the Socialstream installation process.');
-        }
-    }
-
-    private function installOpenAI()
-    {
-        if (class_exists(\OpenAI\Laravel\ServiceProvider::class)) {
-            $this->info('OpenAI is already installed. Skipping...');
-            return;
-        }
-
-        $this->info('Installing OpenAI...');
-        $this->runComposerCommand('require openai-php/laravel');
-
-        $this->info('Running OpenAI installation...');
-        $this->call('openai:install');
-    }
-
-    private function installStartupfulPlugin()
-    {
-        if (Plugin::where('name', 'startupful-plugin')->exists()) {
-            $this->info('Startupful Plugin is already installed. Skipping...');
-            return;
-        }
-
-        // Original installation process...
-        // Publish migrations
-        $this->call('vendor:publish', [
-            '--provider' => 'Startupful\StartupfulPlugin\StartupfulServiceProvider',
-            '--tag' => 'startupful-migrations'
-        ]);
-
-        // Run migrations
-        $this->call('migrate');
-
-        $version = $this->getCurrentVersion();
-
-        // Check if the plugins table exists
-        if (Schema::hasTable('plugins')) {
-            // Add Startupful Plugin to the plugins table
-            Plugin::updateOrCreate(
-                ['name' => 'startupful-plugin'],
-                [
-                    'version' => 'v' . ltrim($version, 'v'),
-                    'description' => 'Core plugin for Startupful',
-                    'developer' => 'startupful/startupful-plugin',
-                    'is_active' => true,
-                    'is_core' => true,
-                    'installed_at' => now(),
-                ]
-            );
-
-            $this->info('Startupful Plugin has been installed successfully.');
-        } else {
-            $this->error('The plugins table does not exist. Migration may have failed.');
-            $this->info('Trying to run migrations manually...');
-            
-            // Force run migrations
-            $this->call('migrate', ['--force' => true]);
-            
-            if (Schema::hasTable('plugins')) {
-                $this->info('Migrations ran successfully.');
-                // Add Startupful Plugin to the plugins table
-                Plugin::updateOrCreate(
-                    ['name' => 'startupful-plugin'],
-                    [
-                        'version' => 'v' . ltrim($version, 'v'),
-                        'description' => 'Core plugin for Startupful',
-                        'developer' => 'Startupful',
-                        'is_active' => true,
-                        'is_core' => true,
-                        'installed_at' => now(),
-                    ]
-                );
-                $this->info('Startupful Plugin has been installed successfully.');
-            } else {
-                $this->error('Failed to create the plugins table. Please check your database configuration and migration files.');
-            }
-        }
-    }
-
-    private function runComposerCommand($command)
-    {
-        $process = new Process(explode(' ', "composer $command"));
-        $process->setWorkingDirectory(base_path());
-        $process->run(function ($type, $buffer) {
-            $this->output->write($buffer);
-        });
     }
 }

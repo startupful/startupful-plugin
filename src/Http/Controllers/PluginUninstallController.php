@@ -65,16 +65,24 @@ class PluginUninstallController
         $className = "Startupful\\{$this->generateClassName($plugin->name)}\\{$this->generateClassName($plugin->name)}Plugin";
         $shortClassName = $this->getShortClassName($className);
 
-        // use 문 제거
-        $usePattern = '/use\s+' . preg_quote($className, '/') . '\s*;/';
+        // use 문 제거 (더 유연한 패턴 사용)
+        $usePattern = '/use\s+Startupful\\\\.*' . preg_quote($shortClassName, '/') . '\s*;/';
         $content = preg_replace($usePattern, '', $content);
 
-        // ->plugin() 메서드 호출 제거
+        // ->plugin() 메서드 호출 제거 (더 유연한 패턴 사용)
         $pluginPattern = '/\s*->plugin\(\s*' . preg_quote($shortClassName, '/') . '::make\(\)\s*\)/';
         $content = preg_replace($pluginPattern, '', $content);
 
+        // 빈 줄 제거
+        $content = preg_replace("/(^[\r\n]*|[\r\n]+)[\s\t]*[\r\n]+/", "\n", $content);
+
         file_put_contents($providerPath, $content);
         Log::info("AdminPanelProvider.php updated successfully for plugin: {$plugin->name}");
+
+        // 변경 사항 확인
+        if (strpos($content, $shortClassName) !== false) {
+            Log::warning("Plugin {$shortClassName} might still be present in AdminPanelProvider.php");
+        }
     }
 
     private function clearCaches(): void
