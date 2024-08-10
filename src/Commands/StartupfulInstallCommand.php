@@ -63,22 +63,25 @@ class StartupfulInstallCommand extends Command
 
         $version = $this->getCurrentVersion();
 
-        // Check if the plugins table exists
         if (Schema::hasTable('plugins')) {
-            // Add Startupful Plugin to the plugins table
-            Plugin::updateOrCreate(
-                ['name' => 'startupful-plugin'],
-                [
+            $existingPlugin = Plugin::where('name', 'startupful-plugin')->first();
+
+            if ($existingPlugin) {
+                // 플러그인이 이미 존재하는 경우, 아무 것도 변경하지 않음
+                $this->info('Startupful Plugin is already installed.');
+            } else {
+                // 플러그인이 존재하지 않는 경우, 새로 생성
+                Plugin::create([
+                    'name' => 'startupful-plugin',
                     'version' => 'v' . ltrim($version, 'v'),
                     'description' => 'Core plugin for Startupful',
                     'developer' => 'startupful/startupful-plugin',
                     'is_active' => true,
                     'is_core' => true,
                     'installed_at' => now(),
-                ]
-            );
-
-            $this->info('Startupful Plugin has been installed successfully.');
+                ]);
+                $this->info('Startupful Plugin has been installed successfully.');
+            }
         } else {
             $this->error('The plugins table does not exist. Migration may have failed.');
             $this->info('Trying to run migrations manually...');
@@ -88,18 +91,15 @@ class StartupfulInstallCommand extends Command
             
             if (Schema::hasTable('plugins')) {
                 $this->info('Migrations ran successfully.');
-                // Add Startupful Plugin to the plugins table
-                Plugin::updateOrCreate(
-                    ['name' => 'startupful-plugin'],
-                    [
-                        'version' => 'v' . ltrim($version, 'v'),
-                        'description' => 'Core plugin for Startupful',
-                        'developer' => 'Startupful',
-                        'is_active' => true,
-                        'is_core' => true,
-                        'installed_at' => now(),
-                    ]
-                );
+                Plugin::create([
+                    'name' => 'startupful-plugin',
+                    'version' => 'v' . ltrim($version, 'v'),
+                    'description' => 'Core plugin for Startupful',
+                    'developer' => 'startupful/startupful-plugin',
+                    'is_active' => true,
+                    'is_core' => true,
+                    'installed_at' => now(),
+                ]);
                 $this->info('Startupful Plugin has been installed successfully.');
             } else {
                 $this->error('Failed to create the plugins table. Please check your database configuration and migration files.');
@@ -324,7 +324,7 @@ class StartupfulInstallCommand extends Command
         
         // 모든 방법이 실패한 경우 기본값 반환
         $this->warn("Unable to determine the current version. Using default version.");
-        return '1.0.0'; // 적절한 기본 버전으로 변경하세요
+        return '0.1.0'; // 적절한 기본 버전으로 변경하세요
     }
 
     protected function publishMigrations(): void
