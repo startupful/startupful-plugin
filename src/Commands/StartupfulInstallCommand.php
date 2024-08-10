@@ -44,6 +44,9 @@ class StartupfulInstallCommand extends Command
         $this->updateAppServiceProvider();
         $this->updateHttpKernel();
 
+        $this->copyAppBlade();
+        $this->updateTailwindConfig();
+
         $version = $this->getCurrentVersion();
 
         // Check if the plugins table exists
@@ -370,6 +373,65 @@ class StartupfulInstallCommand extends Command
             $this->info('AdminPanelProvider.php updated successfully.');
         } else {
             $this->warn('AdminPanelProvider.php not found. Please add the plugin manually.');
+        }
+    }
+
+    private function copyAppBlade(): void
+    {
+        $sourcePath = __DIR__ . '/../../resources/file/app.blade.php';
+        $destinationPath = resource_path('views/layouts/app.blade.php');
+        
+        if (File::exists($sourcePath)) {
+            File::copy($sourcePath, $destinationPath);
+            $this->info('Copied app.blade.php to ' . $destinationPath);
+        } else {
+            $this->warn('Source file for app.blade.php not found at ' . $sourcePath);
+        }
+    }
+
+    private function updateTailwindConfig(): void
+    {
+        $configPath = base_path('tailwind.config.js');
+        
+        if (File::exists($configPath)) {
+            $content = File::get($configPath);
+            
+            // content 요소에 추가
+            if (!str_contains($content, "'./vendor/startupful/**/*.blade.php'")) {
+                $content = preg_replace(
+                    "/(content: \[.*?)\]/s",
+                    "$1,\n    './vendor/startupful/**/*.blade.php'\n    ]",
+                    $content
+                );
+            }
+            
+            // theme.colors에 darkblue 추가
+            if (!str_contains($content, "'darkblue':")) {
+                $darkblueColors = "
+                    'darkblue': {
+                        50: '#F0F1F5',
+                        100: '#D9DAE1',
+                        200: '#B3B5BE',
+                        300: '#8D909B',
+                        400: '#666A78',
+                        500: '#2B2C31',
+                        600: '#1E1F23',
+                        700: '#1D2025',
+                        800: '#191B1E',
+                        900: '#15161A',
+                    },";
+                
+                $content = preg_replace(
+                    "/(theme: \{.*?colors: \{)/s",
+                    "$1" . $darkblueColors,
+                    $content
+                );
+            }
+            
+            File::put($configPath, $content);
+            $this->info('Updated tailwind.config.js with new content path and darkblue color theme.');
+        } else {
+            $this->warn('tailwind.config.js not found. Please update it manually.');
         }
     }
 }
