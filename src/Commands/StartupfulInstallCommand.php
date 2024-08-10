@@ -47,6 +47,9 @@ class StartupfulInstallCommand extends Command
         $this->copyAppBlade();
         $this->updateTailwindConfig();
 
+        $this->copyStartupfulCss();
+        $this->updateAppCss();
+
         $version = $this->getCurrentVersion();
 
         // Check if the plugins table exists
@@ -396,18 +399,19 @@ class StartupfulInstallCommand extends Command
         if (File::exists($configPath)) {
             $content = File::get($configPath);
             
-            // content 요소에 추가
+            // content 배열에 새 경로 추가
             if (!str_contains($content, "'./vendor/startupful/**/*.blade.php'")) {
                 $content = preg_replace(
-                    "/(content: \[.*?)\]/s",
-                    "$1,\n    './vendor/startupful/**/*.blade.php'\n    ]",
+                    "/('\.\/resources\/views\/\*\*\/\*\.blade\.php',\s*)\]/",
+                    "$1'./vendor/startupful/**/*.blade.php',\n    ]",
                     $content
                 );
             }
             
-            // theme.colors에 darkblue 추가
+            // theme.extend.colors에 darkblue 추가
             if (!str_contains($content, "'darkblue':")) {
                 $darkblueColors = "
+                colors: {
                     'darkblue': {
                         50: '#F0F1F5',
                         100: '#D9DAE1',
@@ -422,8 +426,8 @@ class StartupfulInstallCommand extends Command
                     },";
                 
                 $content = preg_replace(
-                    "/(theme: \{.*?colors: \{)/s",
-                    "$1" . $darkblueColors,
+                    "/(theme: \{\s*extend: \{)/",
+                    "$1\n        " . $darkblueColors,
                     $content
                 );
             }
@@ -432,6 +436,39 @@ class StartupfulInstallCommand extends Command
             $this->info('Updated tailwind.config.js with new content path and darkblue color theme.');
         } else {
             $this->warn('tailwind.config.js not found. Please update it manually.');
+        }
+    }
+
+    private function copyStartupfulCss(): void
+    {
+        $sourcePath = __DIR__ . '/../../resources/file/startupful.css';
+        $destinationPath = resource_path('css/startupful.css');
+        
+        if (File::exists($sourcePath)) {
+            File::ensureDirectoryExists(dirname($destinationPath));
+            File::copy($sourcePath, $destinationPath);
+            $this->info('Copied startupful.css to ' . $destinationPath);
+        } else {
+            $this->warn('Source file for startupful.css not found at ' . $sourcePath);
+        }
+    }
+
+    private function updateAppCss(): void
+    {
+        $appCssPath = resource_path('css/app.css');
+        
+        if (File::exists($appCssPath)) {
+            $content = File::get($appCssPath);
+            
+            if (!Str::contains($content, "@import './startupful.css';")) {
+                $updatedContent = "@import './startupful.css';\n\n" . $content;
+                File::put($appCssPath, $updatedContent);
+                $this->info('Updated app.css with import for startupful.css');
+            } else {
+                $this->info('app.css already imports startupful.css');
+            }
+        } else {
+            $this->warn('app.css not found. Please add the import manually.');
         }
     }
 }

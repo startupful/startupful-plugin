@@ -45,10 +45,8 @@ class ManagePluginsController
 
     protected function getCurrentStartupfulPluginVersion(): string
     {
-        // 현재 버전을 가져오는 로직을 구현해야 합니다.
-        // 예를 들어, 설정 파일이나 데이터베이스에서 읽어올 수 있습니다.
-        // 임시로 하드코딩된 값을 반환합니다.
-        return '1.0.0';
+        $startupfulPlugin = Plugin::where('name', 'startupful-plugin')->first();
+        return $startupfulPlugin ? $startupfulPlugin->version : 'Unknown';
     }
 
     public function table(Table $table): Table
@@ -61,7 +59,14 @@ class ManagePluginsController
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('version'),
+                Tables\Columns\TextColumn::make('version')
+                    ->formatStateUsing(function (Plugin $record) {
+                        if ($record->name === 'startupful-plugin') {
+                            $latestVersion = $this->getLatestStartupfulPluginVersion();
+                            return $record->version . ($latestVersion && version_compare($latestVersion, $record->version, '>') ? " (Update available: $latestVersion)" : '');
+                        }
+                        return $record->version;
+                    }),
                 Tables\Columns\TextColumn::make('description')
                     ->limit(100),
                 Tables\Columns\ToggleColumn::make('is_active')
