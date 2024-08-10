@@ -30,22 +30,16 @@ class ComposerOperationsController
     {
         $path = base_path("vendor/" . str_replace('/', DIRECTORY_SEPARATOR, $packageName));
         if (!File::isDirectory($path)) {
-            if (!File::makeDirectory($path, 0755, true)) {
+            if (!File::makeDirectory($path, 0755, true, true)) {
                 throw new \Exception("Unable to create directory: {$path}");
             }
         }
-
-        // Set directory permissions
-        chmod($path, 0755);
-        $this->setPermissionsRecursively($path);
     }
 
     private function setPermissionsRecursively($path)
     {
-        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path));
-        foreach ($iterator as $item) {
-            chmod($item, 0755);
-        }
+        // 이 메서드를 제거하거나 로깅만 수행하도록 변경
+        Log::info("Attempting to set permissions for: {$path}");
     }
 
     private function runComposerCommand(array $command): string

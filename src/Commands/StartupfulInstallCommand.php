@@ -33,6 +33,9 @@ class StartupfulInstallCommand extends Command
         $this->call('migrate');
 
         // New steps
+        $this->publishMigrations();
+        $this->runMigrations();
+        $this->updateAdminPanelProvider();
         $this->updateConfigApp();
         $this->copySetLocaleMiddleware();
         $this->copyLanguageController();
