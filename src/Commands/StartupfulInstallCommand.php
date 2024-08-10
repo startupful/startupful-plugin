@@ -257,18 +257,26 @@ class StartupfulInstallCommand extends Command
             return;
         }
 
-        $content = File::get($path);
+        $originalContent = File::get($path);
+        $content = $originalContent;
 
         if (!str_contains($content, 'SetLocale::class')) {
-            $addition = "\n            \\App\\Http\\Middleware\\SetLocale::class,";
-            $content = preg_replace(
-                "/(protected \$middlewareGroups = \[.*?'web' => \[.*?)\n        \],/s",
-                "$1$addition\n        ],",
-                $content
-            );
-
-            File::put($path, $content);
-            $this->info('Updated Http/Kernel.php with SetLocale middleware in web group.');
+            $pattern = "/('web'\s*=>\s*\[)([\s\S]*?)\],/";
+            $replacement = "$1$2            \App\Http\Middleware\SetLocale::class,\n        ],";
+            
+            $updatedContent = preg_replace($pattern, $replacement, $content);
+            
+            if ($updatedContent !== $content) {
+                // Create a backup
+                File::put($path . '.bak', $originalContent);
+                
+                File::put($path, $updatedContent);
+                $this->info('Updated Http/Kernel.php with SetLocale middleware in web group.');
+                $this->info('A backup of the original file has been created as Http/Kernel.php.bak');
+            } else {
+                $this->warn('Failed to automatically update Http/Kernel.php. Please add the following line manually to the web middleware group:');
+                $this->warn('\App\Http\Middleware\SetLocale::class,');
+            }
         } else {
             $this->info('SetLocale middleware already exists in Http/Kernel.php.');
         }
@@ -402,32 +410,30 @@ class StartupfulInstallCommand extends Command
             // content 배열에 새 경로 추가
             if (!str_contains($content, "'./vendor/startupful/**/*.blade.php'")) {
                 $content = preg_replace(
-                    "/('\.\/resources\/views\/\*\*\/\*\.blade\.php',\s*)\]/",
-                    "$1'./vendor/startupful/**/*.blade.php',\n    ]",
+                    "/(\s*'\.\/resources\/views\/\*\*\/\*\.blade\.php',\s*)\]/",
+                    "$1    './vendor/startupful/**/*.blade.php',\n    ]",
                     $content
                 );
             }
             
             // theme.extend.colors에 darkblue 추가
             if (!str_contains($content, "'darkblue':")) {
-                $darkblueColors = "
-                colors: {
-                    'darkblue': {
-                        50: '#F0F1F5',
-                        100: '#D9DAE1',
-                        200: '#B3B5BE',
-                        300: '#8D909B',
-                        400: '#666A78',
-                        500: '#2B2C31',
-                        600: '#1E1F23',
-                        700: '#1D2025',
-                        800: '#191B1E',
-                        900: '#15161A',
-                    },";
+                $darkblueColors = "'darkblue': {
+                    50: '#F0F1F5',
+                    100: '#D9DAE1',
+                    200: '#B3B5BE',
+                    300: '#8D909B',
+                    400: '#666A78',
+                    500: '#2B2C31',
+                    600: '#1E1F23',
+                    700: '#1D2025',
+                    800: '#191B1E',
+                    900: '#15161A',
+                },";
                 
                 $content = preg_replace(
-                    "/(theme: \{\s*extend: \{)/",
-                    "$1\n        " . $darkblueColors,
+                    "/(theme:\s*{\s*extend:\s*{)/",
+                    "$1\n            colors: {\n                $darkblueColors\n            },",
                     $content
                 );
             }
