@@ -50,6 +50,8 @@ class StartupfulInstallCommand extends Command
         $this->copyStartupfulCss();
         $this->updateAppCss();
 
+        $this->copyProfileViews();
+
         $version = $this->getCurrentVersion();
 
         // Check if the plugins table exists
@@ -476,5 +478,31 @@ class StartupfulInstallCommand extends Command
         } else {
             $this->warn('app.css not found. Please add the import manually.');
         }
+    }
+
+    protected function copyProfileViews(): void
+    {
+        $sourcePath = __DIR__ . '/../../resources/file/profile';
+        $destinationPath = resource_path('views/profile');
+
+        if (!File::isDirectory($sourcePath)) {
+            $this->warn("Source directory for profile views not found at: $sourcePath");
+            return;
+        }
+
+        if (!File::isDirectory($destinationPath)) {
+            File::makeDirectory($destinationPath, 0755, true);
+        }
+
+        $files = File::files($sourcePath);
+
+        foreach ($files as $file) {
+            $destinationFile = $destinationPath . '/' . $file->getFilename();
+            
+            File::copy($file->getPathname(), $destinationFile, true);  // true parameter forces overwrite
+            $this->info("Copied and overwritten: {$file->getFilename()} in views/profile directory.");
+        }
+
+        $this->info('Profile view files have been copied and overwritten successfully.');
     }
 }
