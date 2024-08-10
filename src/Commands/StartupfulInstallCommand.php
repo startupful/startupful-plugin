@@ -8,14 +8,23 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 use Startupful\StartupfulPlugin\Models\Plugin;
 use Illuminate\Support\Facades\Schema;
+use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
 
 class StartupfulInstallCommand extends Command
 {
+    protected $githubRepo;
+
     public $signature = 'startupful-plugin:install';
 
     public $description = 'Install the Startupful Plugin';
 
     protected $resourcePath = __DIR__ . '/../../resources/file/';
+
+    public function __construct(GithubPluginRepository $githubRepo)
+    {
+        parent::__construct();
+        $this->githubRepo = $githubRepo;
+    }
 
     public function handle()
     {
@@ -311,9 +320,11 @@ class StartupfulInstallCommand extends Command
 
     private function getCurrentVersion(): string
     {
-        $composerJson = File::get(__DIR__ . '/../../composer.json');
-        $composerData = json_decode($composerJson, true);
-        return $composerData['version'] ?? '0.1.0';  // 기본값으로 1.0.0 사용
+        $latestVersion = $this->githubRepo->getLatestVersion('startupful/startupful-plugin');
+        
+        // 모든 방법이 실패한 경우 기본값 반환
+        $this->warn("Unable to determine the current version. Using default version.");
+        return '1.0.0'; // 적절한 기본 버전으로 변경하세요
     }
 
     protected function publishMigrations(): void

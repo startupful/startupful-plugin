@@ -1,15 +1,15 @@
 <x-action-section>
     <x-slot name="title">
-        {{ __('browser-sessions.title') }}
+        {{ __('startupful::browser-sessions.title') }}
     </x-slot>
 
     <x-slot name="description">
-        {{ __('browser-sessions.description') }}
+        {{ __('startupful::browser-sessions.description') }}
     </x-slot>
 
     <x-slot name="content">
         <div class="max-w-xl text-sm text-color-sub">
-            {{ __('browser-sessions.info') }}
+            {{ __('startupful::browser-sessions.info') }}
         </div>
 
         @if (count($this->sessions) > 0)
@@ -31,7 +31,7 @@
 
                         <div class="ms-3">
                             <div class="text-sm text-color-sub">
-                                {{ $session->agent->platform() ? $session->agent->platform() : __('browser-sessions.unknown') }} - {{ $session->agent->browser() ? $session->agent->browser() : __('browser-sessions.unknown') }}
+                                {{ $session->agent->platform() ? $session->agent->platform() : __('startupful::browser-sessions.unknown') }} - {{ $session->agent->browser() ? $session->agent->browser() : __('startupful::browser-sessions.unknown') }}
                             </div>
 
                             <div>
@@ -39,9 +39,9 @@
                                     {{ $session->ip_address }},
 
                                     @if ($session->is_current_device)
-                                        <span class="text-green-500 font-semibold">{{ __('browser-sessions.this_device') }}</span>
+                                        <span class="text-green-500 font-semibold">{{ __('startupful::browser-sessions.this_device') }}</span>
                                     @else
-                                        {{ __('browser-sessions.last_active') }} {{ $session->last_active }}
+                                        {{ __('startupful::browser-sessions.last_active') }} {{ $session->last_active }}
                                     @endif
                                 </div>
                             </div>
@@ -53,27 +53,27 @@
 
         <div class="flex items-center mt-5">
             <x-button wire:click="confirmLogout" wire:loading.attr="disabled">
-                {{ __('browser-sessions.log_out_sessions') }}
+                {{ __('startupful::browser-sessions.log_out_sessions') }}
             </x-button>
 
             <x-action-message class="ms-3" on="loggedOut">
-                {{ __('browser-sessions.done') }}
+                {{ __('startupful::browser-sessions.done') }}
             </x-action-message>
         </div>
 
         <!-- Log Out Other Devices Confirmation Modal -->
         <x-dialog-modal wire:model.live="confirmingLogout">
             <x-slot name="title">
-                {{ __('browser-sessions.confirm_logout') }}
+                {{ __('startupful::browser-sessions.confirm_logout') }}
             </x-slot>
 
             <x-slot name="content">
-                {{ __('browser-sessions.confirm_logout_text') }}
+                {{ __('startupful::browser-sessions.confirm_logout_text') }}
 
-                <div class="mt-4" x-data="{}" x-on:confirming-logout-other-browser-sessions.window="setTimeout(() => $refs.password.focus(), 250)">
+                <div class="mt-4" x-data="{}" x-on:confirming-logout-other-startupful::browser-sessions.window="setTimeout(() => $refs.password.focus(), 250)">
                     <x-input type="password" class="mt-1 block w-3/4"
                                 autocomplete="current-password"
-                                placeholder="{{ __('browser-sessions.password') }}"
+                                placeholder="{{ __('startupful::browser-sessions.password') }}"
                                 x-ref="password"
                                 wire:model="password"
                                 wire:keydown.enter="logoutOtherBrowserSessions" />
@@ -84,13 +84,13 @@
 
             <x-slot name="footer">
                 <x-secondary-button wire:click="$toggle('confirmingLogout')" wire:loading.attr="disabled">
-                    {{ __('browser-sessions.cancel') }}
+                    {{ __('startupful::browser-sessions.cancel') }}
                 </x-secondary-button>
 
                 <x-button class="ms-3"
                             wire:click="logoutOtherBrowserSessions"
                             wire:loading.attr="disabled">
-                    {{ __('browser-sessions.log_out_sessions') }}
+                    {{ __('startupful::browser-sessions.log_out_sessions') }}
                 </x-button>
             </x-slot>
         </x-dialog-modal>
