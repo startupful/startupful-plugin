@@ -26,6 +26,11 @@ class ComposerOperationsController
         return $this->runComposerCommand(['remove', $packageName]);
     }
 
+    public function dumpAutoload(): string
+    {
+        return $this->runComposerCommand(['dump-autoload']);
+    }
+
     private function prepareDirectory($packageName): void
     {
         $path = base_path("vendor/" . str_replace('/', DIRECTORY_SEPARATOR, $packageName));
