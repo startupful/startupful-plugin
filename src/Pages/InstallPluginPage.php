@@ -9,6 +9,9 @@ use Startupful\StartupfulPlugin\StartupfulPlugin;
 use Illuminate\Support\Collection;
 use Startupful\StartupfulPlugin\Http\Controllers\PluginInstallController;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
+use Filament\Notifications\Notification;
 
 class InstallPluginPage extends Page
 {
@@ -21,10 +24,18 @@ class InstallPluginPage extends Page
     public ?string $search = '';
     public Collection $plugins;
     public ?string $installationStatus = null;
+    public bool $isSubscribed = false;
 
     public function mount(): void
     {
         $this->plugins = collect(StartupfulPlugin::getGithubRepo()->getStartupfulPlugins());
+        $this->refreshPlugins();
+        $this->checkSubscription();
+    }
+
+    private function checkSubscription(): void
+    {
+        $this->isSubscribed = Session::get('is_verified', false);
     }
 
     public static function getNavigationLabel(): string
@@ -51,6 +62,15 @@ class InstallPluginPage extends Page
 
     public function installPlugin(string $pluginName): void
     {
+        if (!$this->isSubscribed) {
+            Notification::make()
+                ->title("Subscription required")
+                ->body("Please verify your subscription before installing plugins.")
+                ->warning()
+                ->send();
+            return;
+        }
+
         $plugin = $this->plugins->firstWhere('name', $pluginName);
         if (!$plugin) {
             $this->installationStatus = "Plugin not found: $pluginName";
@@ -85,12 +105,14 @@ class InstallPluginPage extends Page
 
         return collect($plugins)->map(function ($plugin) use ($installedPlugins) {
             $plugin['installed'] = $installedPlugins->contains('name', $plugin['name']);
+            Log::info("Plugin {$plugin['name']} installed status: " . ($plugin['installed'] ? 'true' : 'false'));
             return $plugin;
         });
     }
 
     private function getInstalledPlugins(): Collection
     {
-        return DB::table('plugins')->select('name')->get();
+        $plugins = DB::table('plugins')->select('name')->get();
+        return $plugins;
     }
 }

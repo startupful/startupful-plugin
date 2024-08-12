@@ -22,31 +22,39 @@
                         </div>
                         <div class="mt-5">
                             @if(!($plugin['installed'] ?? false))
-                            <x-filament::button
-                                wire:click="installPlugin('{{ $plugin['name'] }}')"
-                                wire:loading.attr="disabled"
-                                wire:target="installPlugin('{{ $plugin['name'] }}')"
-                            >
-                                <span wire:loading.remove wire:target="installPlugin('{{ $plugin['name'] }}')">
-                                    Install
-                                </span>
-                                <span wire:loading wire:target="installPlugin('{{ $plugin['name'] }}')">
-                                    Installing...
-                                </span>
-                            </x-filament::button>
+                                @if($this->isSubscribed)
+                                    <x-filament::button
+                                        wire:click="installPlugin('{{ $plugin['name'] }}')"
+                                        wire:loading.attr="disabled"
+                                        wire:target="installPlugin('{{ $plugin['name'] }}')"
+                                    >
+                                        <span wire:loading.remove wire:target="installPlugin('{{ $plugin['name'] }}')">
+                                            Install
+                                        </span>
+                                        <span wire:loading wire:target="installPlugin('{{ $plugin['name'] }}')">
+                                            Installing...
+                                        </span>
+                                    </x-filament::button>
+                                @else
+                                    <x-filament::button
+                                        disabled
+                                        class="opacity-50 cursor-not-allowed"
+                                        x-data=""
+                                        x-on:click="$dispatch('notify', {
+                                            title: 'Subscription required',
+                                            body: 'Please verify your subscription before installing plugins.',
+                                            type: 'warning',
+                                        })"
+                                    >
+                                        Subscribe to Install
+                                    </x-filament::button>
+                                @endif
                             @else
                                 <x-filament::button
-                                    wire:click="uninstallPlugin('{{ $plugin['name'] }}')"
-                                    wire:loading.attr="disabled"
-                                    wire:target="uninstallPlugin('{{ $plugin['name'] }}')"
-                                    color="danger"
+                                    disabled
+                                    class="opacity-50 cursor-not-allowed"
                                 >
-                                    <span wire:loading.remove wire:target="uninstallPlugin('{{ $plugin['name'] }}')">
-                                        Uninstall
-                                    </span>
-                                    <span wire:loading wire:target="uninstallPlugin('{{ $plugin['name'] }}')">
-                                        Uninstalling...
-                                    </span>
+                                    Installed
                                 </x-filament::button>
                             @endif
                         </div>
@@ -59,4 +67,13 @@
             No plugins found. Try searching for a Startupful plugin.
         </div>
     @endif
+
+    <script>
+    document.addEventListener('livewire:load', function () {
+        Livewire.hook('message.processed', (message, component) => {
+            console.log('Livewire message processed:', message);
+            console.log('Component data:', component.data);
+        });
+    });
+    </script>
 </x-filament::page>
