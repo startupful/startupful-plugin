@@ -166,6 +166,11 @@ class ManagePluginsController
         try {
             $this->getUpdateController()->updatePlugin($plugin);
         } catch (\Exception $e) {
+            Log::error('Plugin update failed', [
+                'plugin' => $plugin->name,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             Notification::make()
                 ->title("Failed to update plugin")
                 ->body("Error: " . $e->getMessage())

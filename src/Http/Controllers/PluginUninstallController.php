@@ -25,12 +25,12 @@ class PluginUninstallController
         try {
             $packageName = $plugin->developer;
 
+            // Remove from AdminPanelProvider
+            $this->removePluginFromAdminPanelProvider($plugin);
+
             // Remove plugin using Composer
             $result = $this->composerOperations->removePlugin($packageName);
             Log::info($result);
-
-            // Remove from AdminPanelProvider
-            $this->removePluginFromAdminPanelProvider($plugin);
 
             // Clear caches
             $this->clearCaches();

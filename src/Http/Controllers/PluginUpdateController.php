@@ -51,9 +51,10 @@ class PluginUpdateController
     {
         try {
             $latestVersion = StartupfulPlugin::getGithubRepo()->getLatestVersion($plugin->developer);
+            Log::info("Latest version for {$plugin->name}: {$latestVersion}");
             return $latestVersion ?? $plugin->version;
         } catch (\Exception $e) {
-            Log::error('Failed to get latest version: ' . $e->getMessage());
+            Log::error('Failed to get latest version: ' . $e->getMessage(), ['exception' => $e]);
             return $plugin->version;
         }
     }
