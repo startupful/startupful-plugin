@@ -49,9 +49,23 @@ class PluginInstallController
 
             // Run migrations
             Log::info("Starting migrations for plugin: {$plugin['name']}");
-            $output = '';
-            Artisan::call('migrate', [], $output);
-            Log::info("Migration output: " . $output);
+            $migrationPath = "packages/startupful/{$plugin['name']}/database/migrations";
+            Log::info("Migration path: {$migrationPath}");
+            
+            try {
+                $output = '';
+                Artisan::call('migrate', ['--path' => $migrationPath, '--force' => true], $output);
+                Log::info("Migration output: " . $output);
+                
+                // Verify if the migration was successful
+                if (!Schema::hasTable('avatars')) {
+                    throw new \Exception("Migration failed: 'avatars' table not created");
+                }
+            } catch (\Exception $migrationException) {
+                Log::error("Migration failed: " . $migrationException->getMessage());
+                Log::error("Migration stack trace: " . $migrationException->getTraceAsString());
+                throw $migrationException;
+            }
 
             // Update AdminPanelProvider
             $this->updateAdminPanelProvider($plugin);
@@ -136,6 +150,13 @@ class PluginInstallController
             'exception' => $e,
             'trace' => $e->getTraceAsString()
         ]);
+        
+        // Check if the error is related to database
+        if ($e instanceof \Illuminate\Database\QueryException) {
+            Log::error("Database error details: " . $e->getSql());
+            Log::error("Database error bindings: " . json_encode($e->getBindings()));
+        }
+        
         Notification::make()
             ->title("Failed to install plugin")
             ->body("Error: " . $e->getMessage() . "\nPlease check the logs for more details.")
