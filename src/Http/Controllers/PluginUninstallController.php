@@ -39,7 +39,7 @@ class PluginUninstallController
             $this->deletePluginFromDatabase($plugin);
 
             Artisan::call('optimize:clear');
-            Artisan::call('composer:dump-autoload');
+            Artisan::call('dump-autoload');
 
             Notification::make()
                 ->title("Plugin '{$plugin->name}' uninstalled successfully.")
