@@ -7,7 +7,6 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Schema;
 
 class PluginInstallController
 {
@@ -50,22 +49,23 @@ class PluginInstallController
 
             // Run migrations
             Log::info("Starting migrations for plugin: {$plugin['name']}");
-            $migrationPath = "packages/startupful/{$plugin['name']}/database/migrations";
-            Log::info("Migration path: {$migrationPath}");
-            
-            try {
-                $output = '';
+            $output = '';
+
+            if ($plugin['name'] !== 'startupful-plugin') {
+                $migrationPath = "vendor/startupful/{$plugin['name']}/database/migrations";
+                Log::info("Running migrations from path: {$migrationPath}");
                 Artisan::call('migrate', ['--path' => $migrationPath, '--force' => true], $output);
-                Log::info("Migration output: " . $output);
-                
-                // Verify if the migration was successful
-                if (!Schema::hasTable('avatars')) {
-                    throw new \Exception("Migration failed: 'avatars' table not created");
-                }
-            } catch (\Exception $migrationException) {
-                Log::error("Migration failed: " . $migrationException->getMessage());
-                Log::error("Migration stack trace: " . $migrationException->getTraceAsString());
-                throw $migrationException;
+            } else {
+                Log::info("Running all migrations");
+                Artisan::call('migrate', ['--force' => true], $output);
+            }
+
+            Log::info("Migration output: " . $output);
+
+            // Verify if the migration was successful (assuming 'avatars' table should be created)
+            if (!Schema::hasTable('avatars')) {
+                Log::error("Migration failed: 'avatars' table not created");
+                throw new \Exception("Migration failed: 'avatars' table not created");
             }
 
             // Update AdminPanelProvider
@@ -151,13 +151,6 @@ class PluginInstallController
             'exception' => $e,
             'trace' => $e->getTraceAsString()
         ]);
-        
-        // Check if the error is related to database
-        if ($e instanceof \Illuminate\Database\QueryException) {
-            Log::error("Database error details: " . $e->getSql());
-            Log::error("Database error bindings: " . json_encode($e->getBindings()));
-        }
-        
         Notification::make()
             ->title("Failed to install plugin")
             ->body("Error: " . $e->getMessage() . "\nPlease check the logs for more details.")
