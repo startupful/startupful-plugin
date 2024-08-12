@@ -12,13 +12,13 @@ class ComposerOperationsController
     public function installPlugin($packageName, $version = '*'): string
     {
         $this->prepareDirectory($packageName);
-        return $this->runComposerCommand(['require', $packageName, '--prefer-source', '--no-cache']);
+        return $this->runComposerCommand(['require', $packageName, '--prefer-dist', '--no-cache']);
     }
 
     public function updatePlugin($packageName): string
     {
         $this->prepareDirectory($packageName);
-        return $this->runComposerCommand(['require', $packageName, '--prefer-source']);
+        return $this->runComposerCommand(['require', $packageName, '--prefer-dist', '--no-cache']);
     }
 
     public function removePlugin($packageName): string
