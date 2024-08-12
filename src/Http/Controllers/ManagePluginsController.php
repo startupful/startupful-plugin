@@ -73,7 +73,7 @@ class ManagePluginsController
                     ->label('Active')
                     ->onColor('success')
                     ->offColor('danger')
-                    ->disabled(fn (Plugin $record) => $record->is_core),
+                    ->disabled(fn (Plugin $record) => $record->is_core || !$isVerified),
                 Tables\Columns\TextColumn::make('installed_at')
                     ->dateTime(),
             ])
