@@ -428,6 +428,14 @@ class StartupfulInstallCommand extends Command
                     $content
                 );
             }
+
+            if (!str_contains($content, "darkMode: 'class'")) {
+                $content = preg_replace(
+                    "/(export\s+default\s*{\s*)/",
+                    "$1\n  darkMode: 'class',\n",
+                    $content
+                );
+            }
             
             // theme.extend.colors에 darkblue 추가
             if (!str_contains($content, "'darkblue':")) {

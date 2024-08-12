@@ -48,7 +48,10 @@ class PluginInstallController
             Log::info($result);
 
             // Run migrations
-            Artisan::call('migrate');
+            Log::info("Starting migrations for plugin: {$plugin['name']}");
+            $output = '';
+            Artisan::call('migrate', [], $output);
+            Log::info("Migration output: " . $output);
 
             // Update AdminPanelProvider
             $this->updateAdminPanelProvider($plugin);
@@ -64,7 +67,8 @@ class PluginInstallController
                 ->send();
         } catch (\Exception $e) {
             $this->installationStatus[$plugin['name']] = 'failed';
-            Log::error("Detailed installation error: " . $e->getMessage());
+            Log::error("Detailed installation error for plugin {$plugin['name']}: " . $e->getMessage());
+            Log::error("Installation stack trace: " . $e->getTraceAsString());
             $this->handleInstallationError($plugin['name'], $e);
         }
     }

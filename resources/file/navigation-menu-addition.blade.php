@@ -79,3 +79,12 @@
 
                 </x-dropdown>
             </div>
+
+            <div class="mr-3" x-data="{ darkMode: document.documentElement.classList.contains('dark') }">
+                <button @click="darkMode = window.toggleDarkMode()" 
+                        id="theme-toggle"
+                        class="w-6 h-6 rounded-lg flex items-center justify-center">
+                    <x-heroicon-o-moon x-show="!darkMode" class="w-5 h-5 text-gray-500" />
+                    <x-heroicon-o-sun x-show="darkMode" class="w-5 h-5 text-yellow-500" />
+                </button>
+            </div>
