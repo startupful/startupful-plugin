@@ -83,17 +83,26 @@ class ManagePluginsController
                     ->label('Update')
                     ->icon('heroicon-o-arrow-path')
                     ->action(fn (Plugin $record) => $this->updatePlugin($record))
-                    ->disabled(function (Plugin $record) {
+                    ->disabled(function (Plugin $record) use ($isVerified) {
+                        if (!$isVerified) {
+                            return true;
+                        }
                         $latestVersion = StartupfulPlugin::getGithubRepo()->getLatestVersion($record->developer);
                         return $latestVersion === $record->version;
                     })
-                    ->tooltip(function (Plugin $record) {
+                    ->tooltip(function (Plugin $record) use ($isVerified) {
+                        if (!$isVerified) {
+                            return 'Subscription verification required';
+                        }
                         $latestVersion = StartupfulPlugin::getGithubRepo()->getLatestVersion($record->developer);
                         return $latestVersion === $record->version
                             ? 'Plugin is up to date'
                             : 'Update available';
                     })
-                    ->color(function (Plugin $record) {
+                    ->color(function (Plugin $record) use ($isVerified) {
+                        if (!$isVerified) {
+                            return 'gray';
+                        }
                         $latestVersion = StartupfulPlugin::getGithubRepo()->getLatestVersion($record->developer);
                         return $latestVersion === $record->version
                             ? 'gray'
@@ -103,7 +112,7 @@ class ManagePluginsController
                     ->action(function (Plugin $record) {
                         $this->uninstallPlugin($record);
                     })
-                    ->hidden(fn (Plugin $record) => $record->is_core)
+                    ->hidden(fn (Plugin $record) => $record->is_core || !$isVerified)
             ])
             ->headerActions([
                 Action::make('pluginKeyAction')
@@ -145,6 +154,15 @@ class ManagePluginsController
 
     public function updatePlugin(Plugin $plugin): void
     {
+        if (!Session::get('is_verified', false)) {
+            Notification::make()
+                ->title("Subscription verification required")
+                ->body("Please verify your subscription before updating plugins.")
+                ->warning()
+                ->send();
+            return;
+        }
+
         try {
             $this->getUpdateController()->updatePlugin($plugin);
         } catch (\Exception $e) {
