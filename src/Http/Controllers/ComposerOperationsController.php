@@ -18,13 +18,12 @@ class ComposerOperationsController
     public function updatePlugin($packageName): string
     {
         $this->prepareDirectory($packageName);
-        return $this->runComposerCommand(['require', $packageName, '--prefer-source', '--with-all-dependencies']);
+        return $this->runComposerCommand(['require', $packageName, '--prefer-source']);
     }
 
     public function removePlugin($packageName): string
     {
-        $this->removePackageDirectory($packageName);
-        return $this->runComposerCommand(['remove', $packageName, '--ignore-platform-reqs']);
+        return $this->runComposerCommand(['remove', $packageName]);
     }
 
     private function prepareDirectory($packageName): void
