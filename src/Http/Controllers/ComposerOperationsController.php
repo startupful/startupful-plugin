@@ -12,7 +12,7 @@ class ComposerOperationsController
     public function installPlugin($packageName, $version = '*'): string
     {
         $this->prepareDirectory($packageName);
-        return $this->runComposerCommand(['require', $packageName, '--prefer-source']);
+        return $this->runComposerCommand(['require', $packageName, '--prefer-source', '--no-cache']);
     }
 
     public function updatePlugin($packageName): string
