@@ -66,8 +66,11 @@ class StartupfulServiceProvider extends PackageServiceProvider
 
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'startupful');
 
+        $this->loadTranslationsFrom(resource_path('lang'), 'startupful');
+
+        // 번역 파일 퍼블리싱 (선택적)
         $this->publishes([
-            __DIR__.'/../resources/lang' => resource_path('lang/vendor/startupful'),
+            __DIR__.'/../resources/lang' => resource_path('lang'),
         ], 'startupful-lang');
     }
 }
