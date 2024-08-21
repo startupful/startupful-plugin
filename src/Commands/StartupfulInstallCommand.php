@@ -49,6 +49,7 @@ class StartupfulInstallCommand extends Command
         $this->copySetLocaleMiddleware();
         $this->copyLanguageController();
         $this->updateNavigationMenu();
+        $this->updateNavigationMenuStyle();
         $this->updateWebRoutes();
         $this->updateAppServiceProvider();
         $this->updateHttpKernel();
@@ -202,6 +203,33 @@ class StartupfulInstallCommand extends Command
             $this->info('Updated navigation-menu.blade.php with language dropdown.');
         } else {
             $this->info('Language dropdown already exists in navigation-menu.blade.php.');
+        }
+    }
+
+    private function updateNavigationMenuStyle(): void
+    {
+        $path = resource_path('views/navigation-menu.blade.php');
+
+        if (File::exists($path)) {
+            $content = File::get($path);
+
+            $oldNav = '<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">';
+            $newNav = '<nav x-data="{ open: false }" class="bg-basic w-full top-0 fixed border-b border-color-basic z-50">';
+
+            $oldDiv = '<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">';
+            $newDiv = '<div class="mx-auto px-4">';
+
+            $updatedContent = str_replace($oldNav, $newNav, $content);
+            $updatedContent = str_replace($oldDiv, $newDiv, $updatedContent);
+
+            if ($content !== $updatedContent) {
+                File::put($path, $updatedContent);
+                $this->info('Updated navigation-menu.blade.php with new styles.');
+            } else {
+                $this->info('Navigation menu styles are already up to date.');
+            }
+        } else {
+            $this->warn('navigation-menu.blade.php not found. Please update the styles manually.');
         }
     }
 
