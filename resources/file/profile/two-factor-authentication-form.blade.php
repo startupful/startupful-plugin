@@ -1,28 +1,28 @@
 <x-action-section>
     <x-slot name="title">
-        {{ __('startupful::two-factor-auth.title') }}
+        {{ __('two-factor-auth.title') }}
     </x-slot>
 
     <x-slot name="description">
-        {{ __('startupful::two-factor-auth.description') }}
+        {{ __('two-factor-auth.description') }}
     </x-slot>
 
     <x-slot name="content">
         <h3 class="text-lg font-medium text-color-basic">
             @if ($this->enabled)
                 @if ($showingConfirmation)
-                    {{ __('startupful::two-factor-auth.finish_enabling') }}
+                    {{ __('two-factor-auth.finish_enabling') }}
                 @else
-                    {{ __('startupful::two-factor-auth.enabled') }}
+                    {{ __('two-factor-auth.enabled') }}
                 @endif
             @else
-                {{ __('startupful::two-factor-auth.not_enabled') }}
+                {{ __('two-factor-auth.not_enabled') }}
             @endif
         </h3>
 
         <div class="mt-3 max-w-xl text-sm text-color-sub">
             <p>
-                {{ __('startupful::two-factor-auth.when_enabled') }}
+                {{ __('two-factor-auth.when_enabled') }}
             </p>
         </div>
 
@@ -31,9 +31,9 @@
                 <div class="mt-4 max-w-xl text-sm text-color-sub">
                     <p class="font-semibold">
                         @if ($showingConfirmation)
-                            {{ __('startupful::two-factor-auth.scan_qr') }}
+                            {{ __('two-factor-auth.scan_qr') }}
                         @else
-                            {{ __('startupful::two-factor-auth.enabled_scan_qr') }}
+                            {{ __('two-factor-auth.enabled_scan_qr') }}
                         @endif
                     </p>
                 </div>
@@ -44,13 +44,13 @@
 
                 <div class="mt-4 max-w-xl text-sm text-color-sub">
                     <p class="font-semibold">
-                        {{ __('startupful::two-factor-auth.setup_key') }}: {{ decrypt($this->user->two_factor_secret) }}
+                        {{ __('two-factor-auth.setup_key') }}: {{ decrypt($this->user->two_factor_secret) }}
                     </p>
                 </div>
 
                 @if ($showingConfirmation)
                     <div class="mt-4">
-                        <x-label for="code" value="{{ __('startupful::two-factor-auth.code') }}" />
+                        <x-label for="code" value="{{ __('two-factor-auth.code') }}" />
 
                         <x-input id="code" type="text" name="code" class="block mt-1 w-1/2" inputmode="numeric" autofocus autocomplete="one-time-code"
                             wire:model="code"
@@ -64,7 +64,7 @@
             @if ($showingRecoveryCodes)
                 <div class="mt-4 max-w-xl text-sm text-color-sub">
                     <p class="font-semibold">
-                        {{ __('startupful::two-factor-auth.store_recovery') }}
+                        {{ __('two-factor-auth.store_recovery') }}
                     </p>
                 </div>
 
@@ -80,26 +80,26 @@
             @if (! $this->enabled)
                 <x-confirms-password wire:then="enableTwoFactorAuthentication">
                     <x-button type="button" wire:loading.attr="disabled">
-                        {{ __('startupful::two-factor-auth.enable') }}
+                        {{ __('two-factor-auth.enable') }}
                     </x-button>
                 </x-confirms-password>
             @else
                 @if ($showingRecoveryCodes)
                     <x-confirms-password wire:then="regenerateRecoveryCodes">
                         <x-secondary-button class="me-3">
-                            {{ __('startupful::two-factor-auth.regenerate_codes') }}
+                            {{ __('two-factor-auth.regenerate_codes') }}
                         </x-secondary-button>
                     </x-confirms-password>
                 @elseif ($showingConfirmation)
                     <x-confirms-password wire:then="confirmTwoFactorAuthentication">
                         <x-button type="button" class="me-3" wire:loading.attr="disabled">
-                            {{ __('startupful::two-factor-auth.confirm') }}
+                            {{ __('two-factor-auth.confirm') }}
                         </x-button>
                     </x-confirms-password>
                 @else
                     <x-confirms-password wire:then="showRecoveryCodes">
                         <x-secondary-button class="me-3">
-                            {{ __('startupful::two-factor-auth.show_codes') }}
+                            {{ __('two-factor-auth.show_codes') }}
                         </x-secondary-button>
                     </x-confirms-password>
                 @endif
@@ -107,13 +107,13 @@
                 @if ($showingConfirmation)
                     <x-confirms-password wire:then="disableTwoFactorAuthentication">
                         <x-secondary-button wire:loading.attr="disabled">
-                            {{ __('startupful::two-factor-auth.cancel') }}
+                            {{ __('two-factor-auth.cancel') }}
                         </x-secondary-button>
                     </x-confirms-password>
                 @else
                     <x-confirms-password wire:then="disableTwoFactorAuthentication">
                         <x-danger-button wire:loading.attr="disabled">
-                            {{ __('startupful::two-factor-auth.disable') }}
+                            {{ __('two-factor-auth.disable') }}
                         </x-danger-button>
                     </x-confirms-password>
                 @endif
