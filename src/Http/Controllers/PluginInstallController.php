@@ -218,5 +218,16 @@ class PluginInstallController
                 Log::info("External asset publishing output for {$plugin['name']} (Provider: {$externalAsset['provider']}): " . $output);
             }
         }
+
+        // Directly publish Laraberg assets
+        if ($plugin['name'] === 'webpage-manager') {
+            $output = '';
+            Artisan::call('vendor:publish', [
+                '--provider' => 'Startupful\WebpageManager\WebpageManagerServiceProvider',
+                '--tag' => 'laraberg-assets',
+                '--force' => true
+            ], $output);
+            Log::info("Laraberg asset publishing output: " . $output);
+        }
     }
 }
