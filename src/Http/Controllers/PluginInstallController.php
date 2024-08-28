@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Config;
 
 class PluginInstallController
 {
@@ -182,25 +183,40 @@ class PluginInstallController
     private function publishAssets($plugin): void
     {
         Log::info("Publishing assets for plugin: {$plugin['name']}");
-        $output = '';
-
+        
         try {
-            // Construct the provider class name
-            $providerClass = "Startupful\\{$this->generateClassName($plugin['name'])}\\{$this->generateClassName($plugin['name'])}ServiceProvider";
+            // Publish internal assets
+            $this->publishInternalAssets($plugin);
 
-            // Check if the provider class exists
-            if (class_exists($providerClass)) {
-                Artisan::call('vendor:publish', [
-                    '--provider' => $providerClass,
-                    '--force' => true
-                ], $output);
-                Log::info("Asset publishing output: " . $output);
-            } else {
-                Log::warning("Service provider class not found for plugin: {$plugin['name']}");
-            }
+            // Publish external assets
+            $this->publishExternalAssets($plugin);
         } catch (\Exception $e) {
             Log::error("Error publishing assets for plugin {$plugin['name']}: " . $e->getMessage());
             throw $e;
+        }
+    }
+
+    private function publishExternalAssets($plugin): void
+    {
+        $configKey = str_replace('-', '_', $plugin['name']);
+        $config = Config::get($configKey, []);
+        $externalAssets = $config['external_assets'] ?? [];
+
+        foreach ($externalAssets as $externalAsset) {
+            if (isset($externalAsset['provider'])) {
+                $output = '';
+                $command = [
+                    '--provider' => $externalAsset['provider'],
+                    '--force' => true
+                ];
+
+                if (isset($externalAsset['tag'])) {
+                    $command['--tag'] = $externalAsset['tag'];
+                }
+
+                Artisan::call('vendor:publish', $command, $output);
+                Log::info("External asset publishing output for {$plugin['name']} (Provider: {$externalAsset['provider']}): " . $output);
+            }
         }
     }
 }
