@@ -204,6 +204,18 @@ class PluginInstallController
             } else {
                 Log::info("No publishable assets defined in service provider for {$plugin['name']}");
             }
+
+            // 추가: WebpageManager 에셋 자동 발행
+            if ($plugin['name'] === 'webpage-manager') {
+                Log::info("Publishing WebpageManager assets");
+                $output = '';
+                Artisan::call('vendor:publish', [
+                    '--provider' => 'Startupful\WebpageManager\WebpageManagerServiceProvider',
+                    '--tag' => 'webpage-manager-assets',
+                    '--force' => true
+                ], $output);
+                Log::info("WebpageManager assets publish command output: " . $output);
+            }
         } else {
             Log::warning("Service provider not found for {$plugin['name']}: {$serviceProviderClass}");
         }
