@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Config;
 
 class PluginInstallController
 {
@@ -70,10 +69,10 @@ class PluginInstallController
                 throw new \Exception("Migration failed: 'avatars' table not created");
             }
 
-            $this->publishAssets($plugin);
-
             // Update AdminPanelProvider
             $this->updateAdminPanelProvider($plugin);
+
+            $this->publishAssets($plugin);
 
             // Add to installed plugins
             $this->addToInstalledPlugins($plugin);
@@ -179,55 +178,30 @@ class PluginInstallController
     {
         return $this->installationStatus;
     }
-
+    
     private function publishAssets($plugin): void
     {
         Log::info("Publishing assets for plugin: {$plugin['name']}");
-        
-        try {
-            // Publish internal assets
-            $this->publishInternalAssets($plugin);
 
-            // Publish external assets
-            $this->publishExternalAssets($plugin);
-        } catch (\Exception $e) {
-            Log::error("Error publishing assets for plugin {$plugin['name']}: " . $e->getMessage());
-            throw $e;
-        }
-    }
+        $serviceProviderClass = $this->getServiceProviderClass($plugin);
+        if (class_exists($serviceProviderClass)) {
+            $reflection = new \ReflectionClass($serviceProviderClass);
+            $properties = $reflection->getDefaultProperties();
 
-    private function publishExternalAssets($plugin): void
-    {
-        $configKey = str_replace('-', '_', $plugin['name']);
-        $config = Config::get($configKey, []);
-        $externalAssets = $config['external_assets'] ?? [];
-
-        foreach ($externalAssets as $externalAsset) {
-            if (isset($externalAsset['provider'])) {
-                $output = '';
-                $command = [
-                    '--provider' => $externalAsset['provider'],
-                    '--force' => true
-                ];
-
-                if (isset($externalAsset['tag'])) {
-                    $command['--tag'] = $externalAsset['tag'];
+            if (isset($properties['publishes'])) {
+                foreach ($properties['publishes'] as $group => $paths) {
+                    Artisan::call('vendor:publish', [
+                        '--provider' => $serviceProviderClass,
+                        '--tag' => $group,
+                        '--force' => true
+                    ]);
+                    Log::info("Published assets for {$plugin['name']} with tag: {$group}");
                 }
-
-                Artisan::call('vendor:publish', $command, $output);
-                Log::info("External asset publishing output for {$plugin['name']} (Provider: {$externalAsset['provider']}): " . $output);
+            } else {
+                Log::info("No publishable assets defined for {$plugin['name']}");
             }
-        }
-
-        // Directly publish Laraberg assets
-        if ($plugin['name'] === 'webpage-manager') {
-            $output = '';
-            Artisan::call('vendor:publish', [
-                '--provider' => 'Startupful\WebpageManager\WebpageManagerServiceProvider',
-                '--tag' => 'laraberg-assets',
-                '--force' => true
-            ], $output);
-            Log::info("Laraberg asset publishing output: " . $output);
+        } else {
+            Log::warning("Service provider not found for {$plugin['name']}");
         }
     }
 }
