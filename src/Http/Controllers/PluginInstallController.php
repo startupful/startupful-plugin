@@ -181,27 +181,33 @@ class PluginInstallController
     
     private function publishAssets($plugin): void
     {
-        Log::info("Publishing assets for plugin: {$plugin['name']}");
+        Log::info("Starting asset publishing for plugin: {$plugin['name']}");
 
         $serviceProviderClass = $this->getServiceProviderClass($plugin);
         if (class_exists($serviceProviderClass)) {
+            Log::info("Service provider found: {$serviceProviderClass}");
             $reflection = new \ReflectionClass($serviceProviderClass);
             $properties = $reflection->getDefaultProperties();
 
             if (isset($properties['publishes'])) {
+                Log::info("Publishable assets found for {$plugin['name']}");
                 foreach ($properties['publishes'] as $group => $paths) {
+                    Log::info("Publishing assets for group: {$group}");
+                    $output = '';
                     Artisan::call('vendor:publish', [
                         '--provider' => $serviceProviderClass,
                         '--tag' => $group,
                         '--force' => true
-                    ]);
-                    Log::info("Published assets for {$plugin['name']} with tag: {$group}");
+                    ], $output);
+                    Log::info("Publish command output for {$group}: " . $output);
                 }
             } else {
-                Log::info("No publishable assets defined for {$plugin['name']}");
+                Log::info("No publishable assets defined in service provider for {$plugin['name']}");
             }
         } else {
-            Log::warning("Service provider not found for {$plugin['name']}");
+            Log::warning("Service provider not found for {$plugin['name']}: {$serviceProviderClass}");
         }
+
+        Log::info("Asset publishing completed for plugin: {$plugin['name']}");
     }
 }
