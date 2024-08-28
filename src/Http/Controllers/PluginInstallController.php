@@ -48,6 +48,8 @@ class PluginInstallController
             $result = $this->composerOperations->installPlugin($packageName, $version);
             Log::info($result);
 
+            $this->publishAssets($plugin);
+
             // Run migrations
             Log::info("Starting migrations for plugin: {$plugin['name']}");
             $output = '';
@@ -71,8 +73,6 @@ class PluginInstallController
 
             // Update AdminPanelProvider
             $this->updateAdminPanelProvider($plugin);
-
-            $this->publishAssets($plugin);
 
             // Add to installed plugins
             $this->addToInstalledPlugins($plugin);
