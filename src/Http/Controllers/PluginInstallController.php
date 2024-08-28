@@ -69,6 +69,8 @@ class PluginInstallController
                 throw new \Exception("Migration failed: 'avatars' table not created");
             }
 
+            $this->publishAssets($plugin);
+
             // Update AdminPanelProvider
             $this->updateAdminPanelProvider($plugin);
 
@@ -175,5 +177,30 @@ class PluginInstallController
     public function getInstallationStatus(): array
     {
         return $this->installationStatus;
+    }
+
+    private function publishAssets($plugin): void
+    {
+        Log::info("Publishing assets for plugin: {$plugin['name']}");
+        $output = '';
+
+        try {
+            // Construct the provider class name
+            $providerClass = "Startupful\\{$this->generateClassName($plugin['name'])}\\{$this->generateClassName($plugin['name'])}ServiceProvider";
+
+            // Check if the provider class exists
+            if (class_exists($providerClass)) {
+                Artisan::call('vendor:publish', [
+                    '--provider' => $providerClass,
+                    '--force' => true
+                ], $output);
+                Log::info("Asset publishing output: " . $output);
+            } else {
+                Log::warning("Service provider class not found for plugin: {$plugin['name']}");
+            }
+        } catch (\Exception $e) {
+            Log::error("Error publishing assets for plugin {$plugin['name']}: " . $e->getMessage());
+            throw $e;
+        }
     }
 }
