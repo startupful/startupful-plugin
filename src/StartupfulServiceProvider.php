@@ -12,11 +12,16 @@ use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Startupful\StartupfulPlugin\Pages\ManagePlugins;
 use Startupful\StartupfulPlugin\Commands\StartupfulInstallCommand;
 use Startupful\StartupfulPlugin\Http\Controllers\PluginInstallController;
+use Startupful\StartupfulPlugin\Filament\Widgets\PluginKeyWidget;
 use Startupful\StartupfulPlugin\Models\Plugin;
 
 class StartupfulServiceProvider extends PackageServiceProvider
 {
     public static string $name = 'startupful';
+
+    protected array $widgets = [
+        PluginKeyWidget::class,
+    ];
 
     public function configurePackage(Package $package): void
     {

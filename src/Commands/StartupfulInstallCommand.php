@@ -62,6 +62,8 @@ class StartupfulInstallCommand extends Command
 
         $this->copyProfileViews();
 
+        $this->copyLogoFiles();
+
         $version = $this->getCurrentVersion();
 
         if (Schema::hasTable('plugins')) {
@@ -240,16 +242,25 @@ class StartupfulInstallCommand extends Command
         if (File::exists($routesPath)) {
             $content = File::get($routesPath);
             
+            // Remove the default welcome route
+            $content = preg_replace(
+                '/Route::get\(\'\\/\', function \(\) {[\s\S]*?}\);/',
+                '',
+                $content
+            );
+            
             if (!str_contains($content, 'LanguageController')) {
                 $addition = "\nuse App\Http\Controllers\LanguageController;\n\nRoute::middleware(['web'])->group(function () {\n    Route::get('language/{locale}', [LanguageController::class, 'switch'])->name('language.switch');\n});\n";
                 
-                File::append($routesPath, $addition);
-                $this->info('Updated routes/web.php with language switch route.');
+                $content .= $addition;
+                
+                File::put($routesPath, $content);
+                $this->info('Updated routes/web.php: Removed default welcome route and added language switch route.');
             } else {
-                $this->info('Language switch route already exists in routes/web.php.');
+                $this->info('Language switch route already exists in routes/web.php. Default welcome route has been removed.');
             }
         } else {
-            $this->warn('routes/web.php not found. Please add the language switch route manually.');
+            $this->warn('routes/web.php not found. Please update the routes file manually.');
         }
     }
 
@@ -551,5 +562,24 @@ class StartupfulInstallCommand extends Command
         }
 
         $this->info('Profile view files have been copied and overwritten successfully.');
+    }
+
+    protected function copyLogoFiles(): void
+    {
+        $files = [
+            'favicon.ico' => 'packages/startupful/startupful-plugin/resources/file/logo/favicon.ico',
+            'logo.png' => 'packages/startupful/startupful-plugin/resources/file/logo/logo.png',
+        ];
+
+        foreach ($files as $filename => $sourcePath) {
+            $destinationPath = public_path($filename);
+            
+            if (File::exists(base_path($sourcePath))) {
+                File::copy(base_path($sourcePath), $destinationPath);
+                $this->info("Copied $filename to public directory.");
+            } else {
+                $this->warn("Source file for $filename not found at " . base_path($sourcePath));
+            }
+        }
     }
 }
