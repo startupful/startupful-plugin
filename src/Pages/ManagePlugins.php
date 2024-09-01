@@ -15,7 +15,7 @@ class ManagePlugins extends Page implements Tables\Contracts\HasTable
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationGroup = 'Startupful Plugin';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
     protected static ?string $slug = 'startupful-manage-plugins';
     protected static ?string $modelLabel = 'Plugin';
 
@@ -23,7 +23,12 @@ class ManagePlugins extends Page implements Tables\Contracts\HasTable
 
     public static function getNavigationLabel(): string
     {
-        return 'Manage Plugins';
+        return __('startupful-plugin.plugin_management');
+    }
+
+    public function getTitle(): string
+    {
+        return __('startupful-plugin.plugin_management');
     }
 
     public function table(Table $table): Table

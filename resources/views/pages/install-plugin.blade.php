@@ -29,10 +29,10 @@
                                         wire:target="installPlugin('{{ $plugin['name'] }}')"
                                     >
                                         <span wire:loading.remove wire:target="installPlugin('{{ $plugin['name'] }}')">
-                                            Install
+                                            {{ __('startupful-plugin.install') }}
                                         </span>
                                         <span wire:loading wire:target="installPlugin('{{ $plugin['name'] }}')">
-                                            Installing...
+                                            {{ __('startupful-plugin.installing') }}
                                         </span>
                                     </x-filament::button>
                                 @else
@@ -46,7 +46,7 @@
                                             type: 'warning',
                                         })"
                                     >
-                                        Subscribe to Install
+                                        {{ __('startupful-plugin.enter_plugin_key') }}
                                     </x-filament::button>
                                 @endif
                             @else
@@ -54,7 +54,7 @@
                                     disabled
                                     class="opacity-50 cursor-not-allowed"
                                 >
-                                    Installed
+                                    {{ __('startupful-plugin.installed') }}
                                 </x-filament::button>
                             @endif
                         </div>

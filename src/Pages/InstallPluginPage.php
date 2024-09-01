@@ -18,7 +18,7 @@ class InstallPluginPage extends Page
     protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
     protected static string $view = 'startupful::pages.install-plugin';
     protected static ?string $navigationGroup = 'Startupful Plugin';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
     protected static ?string $slug = 'startupful-install-plugin';
 
     public ?string $search = '';
@@ -40,7 +40,12 @@ class InstallPluginPage extends Page
 
     public static function getNavigationLabel(): string
     {
-        return 'Install New Plugin';
+        return __('startupful-plugin.plugin_installation');
+    }
+
+    public function getTitle(): string
+    {
+        return __('startupful-plugin.plugin_installation');
     }
 
     public function form(Form $form): Form

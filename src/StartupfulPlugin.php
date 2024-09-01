@@ -3,9 +3,11 @@
 namespace Startupful\StartupfulPlugin;
 
 use Filament\Contracts\Plugin;
+use Filament\Facades\Filament;
 use Filament\Panel;
 use Filament\Support\Colors\Color;
 use Filament\Support\Facades\FilamentColor;
+use Startupful\StartupfulPlugin\Pages\GeneralSettings;
 use Startupful\StartupfulPlugin\Pages\ManagePlugins;
 use Startupful\StartupfulPlugin\Pages\InstallPluginPage;
 use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
@@ -22,6 +24,7 @@ class StartupfulPlugin implements Plugin
     {
         try {
             $panel->pages([
+                GeneralSettings::class,
                 ManagePlugins::class,
                 InstallPluginPage::class
             ]);
@@ -45,6 +48,12 @@ class StartupfulPlugin implements Plugin
                 900 => '49, 46, 129',    // Indigo 900
                 950 => '30, 27, 75',     // Indigo 950
             ],
+        ]);
+
+        Filament::registerNavigationGroups([
+            'Startupful Plugin',
+            'Webpage Manager',
+            'AI',
         ]);
     }
 

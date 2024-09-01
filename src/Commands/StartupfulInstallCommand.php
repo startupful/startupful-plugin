@@ -413,23 +413,104 @@ class StartupfulInstallCommand extends Command
         if (file_exists($providerPath)) {
             $content = file_get_contents($providerPath);
 
-            // Add use statement if not exists
-            if (!Str::contains($content, 'use Startupful\StartupfulPlugin\StartupfulPlugin;')) {
-                $content = Str::replace(
-                    "namespace App\Providers\Filament;",
-                    "namespace App\Providers\Filament;\n\nuse Startupful\StartupfulPlugin\StartupfulPlugin;",
-                    $content
-                );
+            // Add use statements if not exists
+            $useStatements = [
+                'use Startupful\StartupfulPlugin\StartupfulPlugin;',
+                'use Startupful\StartupfulPlugin\Models\PluginSetting;',
+                'use Illuminate\Support\Facades\Schema;',
+                'use Illuminate\Support\Facades\Log;',
+            ];
+
+            foreach ($useStatements as $statement) {
+                if (!Str::contains($content, $statement)) {
+                    $content = Str::replace(
+                        "namespace App\Providers\Filament;",
+                        "namespace App\Providers\Filament;\n\n" . $statement,
+                        $content
+                    );
+                }
             }
 
-            // Add plugin to panel if not exists
-            if (!Str::contains($content, '->plugin(StartupfulPlugin::make())')) {
-                $content = preg_replace(
-                    '/(->login\(\))/',
-                    "$1\n            ->plugin(StartupfulPlugin::make())",
-                    $content
-                );
+            // Add isPluginKeySet method if not exists
+            if (!Str::contains($content, 'private function isPluginKeySet()')) {
+                $isPluginKeySetMethod = <<<'EOD'
+
+        private function isPluginKeySet(): bool
+        {
+            try {
+                Log::channel('daily')->info('AdminPanelProvider: Checking if plugin key is set');
+                
+                if (!Schema::hasTable('plugin_settings')) {
+                    Log::channel('daily')->info('AdminPanelProvider: plugin_settings table does not exist');
+                    return false;
+                }
+
+                $pluginKey = PluginSetting::where('plugin_name', 'startupful_plugin')
+                    ->where('key', 'plugin-key')
+                    ->first();
+
+                $isSet = $pluginKey && !empty($pluginKey->value);
+                Log::channel('daily')->info('AdminPanelProvider: Plugin key found', ['isSet' => $isSet]);
+                
+                return $isSet;
+            } catch (\Exception $e) {
+                Log::channel('daily')->error('AdminPanelProvider: Exception in isPluginKeySet', [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                return false;
             }
+        }
+    EOD;
+                $content = preg_replace('/(class AdminPanelProvider.*?\{)/s', "$1\n$isPluginKeySetMethod", $content);
+            }
+
+            // Update panel method
+            $panelMethodUpdate = <<<'EOD'
+                ]);
+
+                $isPluginKeySet = $this->isPluginKeySet();
+                Log::channel('daily')->info('AdminPanelProvider: Plugin key set status', ['isSet' => $isPluginKeySet]);
+
+                if ($isPluginKeySet) {
+                    Log::channel('daily')->info('AdminPanelProvider: Checking and registering additional plugins');
+                    
+                    if (class_exists('Startupful\ContentsSummary\ContentsSummaryPlugin')) {
+                        $panel->plugin(\Startupful\ContentsSummary\ContentsSummaryPlugin::make());
+                        Log::channel('daily')->info('AdminPanelProvider: ContentsSummaryPlugin registered');
+                    } else {
+                        Log::channel('daily')->warning('AdminPanelProvider: ContentsSummaryPlugin class not found');
+                    }
+
+                    if (class_exists('Startupful\WebpageManager\WebpageManagerPlugin')) {
+                        $panel->plugin(WebpageManagerPlugin::make());
+                        Log::channel('daily')->info('AdminPanelProvider: WebpageManagerPlugin registered');
+                    } else {
+                        Log::channel('daily')->warning('AdminPanelProvider: WebpageManagerPlugin class not found');
+                    }
+
+                    if (class_exists('Startupful\AvatarChat\AvatarChatPlugin')) {
+                        $panel->plugin(AvatarChatPlugin::make());
+                        Log::channel('daily')->info('AdminPanelProvider: AvatarChatPlugin registered');
+                    } else {
+                        Log::channel('daily')->warning('AdminPanelProvider: AvatarChatPlugin class not found');
+                    }
+                } else {
+                    Log::channel('daily')->info('AdminPanelProvider: Skipping additional plugin registration due to missing key');
+                }
+
+                Log::channel('daily')->info('AdminPanelProvider: Panel configuration completed');
+                return $panel;
+            } catch (\Exception $e) {
+                Log::channel('daily')->error('AdminPanelProvider: Exception occurred', [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
+    EOD;
+
+            $content = preg_replace('/->authMiddleware\(\[.*?\]\);(?=\s*}\s*$)/s', $panelMethodUpdate, $content);
 
             file_put_contents($providerPath, $content);
 

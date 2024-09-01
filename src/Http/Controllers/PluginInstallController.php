@@ -94,7 +94,6 @@ class PluginInstallController
     private function updateAdminPanelProvider($plugin): void
     {
         $className = "Startupful\\{$this->generateClassName($plugin['name'])}\\{$this->generateClassName($plugin['name'])}Plugin";
-        $shortClassName = $this->getShortClassName($className);
         
         $providerPath = app_path('Providers/Filament/AdminPanelProvider.php');
         Log::info("Updating AdminPanelProvider.php at: {$providerPath}");
@@ -106,33 +105,16 @@ class PluginInstallController
         $content = file_get_contents($providerPath);
 
         $useStatement = "use {$className};";
-        $pluginMethod = "->plugin({$shortClassName}::make())";
 
         if (!str_contains($content, $useStatement)) {
             $content = str_replace("namespace App\Providers\Filament;", "namespace App\Providers\Filament;\n\n{$useStatement}", $content);
             Log::info("Use statement added: {$useStatement}");
-        }
-
-        if (!str_contains($content, $pluginMethod)) {
-            // Look for the ->login() method and add the plugin method after it
-            $pattern = '/(\->login\([^)]*\))/';
-            if (preg_match($pattern, $content, $matches)) {
-                $replacement = $matches[0] . "\n            {$pluginMethod}";
-                $content = preg_replace($pattern, $replacement, $content, 1);
-                Log::info("Plugin method added after ->login(): {$pluginMethod}");
-            } else {
-                Log::warning("Could not find ->login() method. Adding plugin method at the end of panel configuration.");
-                // If ->login() is not found, add the plugin method at the end of the panel configuration
-                $pattern = '/(return\s+\$panel\s*;)/';
-                $replacement = "            {$pluginMethod}\n        $1";
-                $content = preg_replace($pattern, $replacement, $content, 1);
-            }
+            
+            file_put_contents($providerPath, $content);
+            Log::info("AdminPanelProvider.php updated successfully");
         } else {
-            Log::info("Plugin method already exists: {$pluginMethod}");
+            Log::info("Use statement already exists: {$useStatement}");
         }
-
-        file_put_contents($providerPath, $content);
-        Log::info("AdminPanelProvider.php updated successfully");
     }
 
     private function addToInstalledPlugins(array $plugin): void

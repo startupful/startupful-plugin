@@ -51,15 +51,15 @@ class ManagePluginsController
 
     public function table(Table $table): Table
     {
-        $pluginKey = Session::get('plugin_key', '');
-        $isVerified = Session::get('is_verified', false);
 
         return $table
             ->query(Plugin::query()->orderByDesc('is_core')->orderBy('name'))
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->label(__('startupful-plugin.plugin_name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('version')
+                    ->label(__('startupful-plugin.version'))
                     ->formatStateUsing(function (Plugin $record) {
                         if ($record->name === 'startupful-plugin') {
                             $latestVersion = $this->getLatestStartupfulPluginVersion();
@@ -68,72 +68,16 @@ class ManagePluginsController
                         return $record->version;
                     }),
                 Tables\Columns\TextColumn::make('description')
+                    ->label(__('startupful-plugin.description'))
                     ->limit(100),
-                Tables\Columns\ToggleColumn::make('is_active')
-                    ->label('Active')
-                    ->onColor('success')
-                    ->offColor('danger')
-                    ->disabled(fn (Plugin $record) => $record->is_core || !$isVerified),
                 Tables\Columns\TextColumn::make('installed_at')
+                    ->label(__('startupful-plugin.install_date'))
                     ->dateTime(),
             ])
             ->searchable(false)
             ->actions([
-                Action::make('update')
-                    ->label('Update')
-                    ->icon('heroicon-o-arrow-path')
-                    ->action(fn (Plugin $record) => $this->updatePlugin($record))
-                    ->disabled(function (Plugin $record) use ($isVerified) {
-                        if (!$isVerified) {
-                            return true;
-                        }
-                        $latestVersion = StartupfulPlugin::getGithubRepo()->getLatestVersion($record->developer);
-                        return $latestVersion === $record->version;
-                    })
-                    ->tooltip(function (Plugin $record) use ($isVerified) {
-                        if (!$isVerified) {
-                            return 'Subscription verification required';
-                        }
-                        $latestVersion = StartupfulPlugin::getGithubRepo()->getLatestVersion($record->developer);
-                        return $latestVersion === $record->version
-                            ? 'Plugin is up to date'
-                            : 'Update available';
-                    })
-                    ->color(function (Plugin $record) use ($isVerified) {
-                        if (!$isVerified) {
-                            return 'gray';
-                        }
-                        $latestVersion = StartupfulPlugin::getGithubRepo()->getLatestVersion($record->developer);
-                        return $latestVersion === $record->version
-                            ? 'gray'
-                            : 'primary';
-                    }),
-                DeleteAction::make()
-                    ->action(function (Plugin $record) {
-                        $this->uninstallPlugin($record);
-                    })
-                    ->hidden(fn (Plugin $record) => $record->is_core || !$isVerified)
             ])
             ->headerActions([
-                Action::make('pluginKeyAction')
-                    ->label('Plugin Key')
-                    ->form([
-                        TextInput::make('plugin_key')
-                            ->label('Plugin Key')
-                            ->required()
-                            ->disabled($isVerified)
-                            ->default($pluginKey),
-                    ])
-                    ->action(function (array $data) use ($isVerified) {
-                        if ($isVerified) {
-                            $this->removeSubscription();
-                        } else {
-                            $this->verifySubscription($data['plugin_key']);
-                        }
-                    })
-                    ->button()
-                    ->label(fn () => $isVerified ? 'Plugin Key Remove' : 'Plugin Key Verify')
-                    ->color(fn () => $isVerified ? 'danger' : 'primary'),
             ]);
     }
 
@@ -187,79 +131,6 @@ class ManagePluginsController
             Notification::make()
                 ->title("Failed to uninstall plugin")
                 ->body("Error: " . $e->getMessage())
-                ->danger()
-                ->send();
-        }
-    }
-
-
-
-    public function verifySubscription($pluginKey)
-    {
-        try {
-            Log::info('Attempting to verify subscription', ['plugin_key' => $pluginKey, 'domain' => request()->getHost()]);
-            
-            $response = Http::post($this->mainServerUrl . '/api/verify-subscription', [
-                'paddle_id' => $pluginKey,
-                'domain' => request()->getHost(),
-            ]);
-            
-            Log::info('Received response from server', ['status' => $response->status(), 'body' => $response->body()]);
-            
-            if ($response->successful()) {
-                $responseData = $response->json();
-                Session::put('plugin_key', $pluginKey);
-                Session::put('is_verified', true);
-                Notification::make()
-                    ->title($responseData['message'] ?? 'Subscription verified successfully')
-                    ->success()
-                    ->send();
-            } else {
-                $errorMessage = $response->json()['message'] ?? $response->body() ?? 'Unknown error';
-                Notification::make()
-                    ->title('Failed to verify subscription')
-                    ->body($errorMessage)
-                    ->danger()
-                    ->send();
-            }
-        } catch (\Exception $e) {
-            Log::error('Exception occurred while verifying subscription', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            
-            Notification::make()
-                ->title('Failed to verify subscription')
-                ->body('An error occurred: ' . $e->getMessage())
-                ->danger()
-                ->send();
-        }
-    }
-
-    public function removeSubscription()
-    {
-        try {
-            $response = Http::post($this->mainServerUrl . '/api/remove-subscription', [
-                'domain' => request()->getHost(),
-            ]);
-            
-            if ($response->successful()) {
-                $responseData = $response->json();
-                Session::forget('plugin_key');
-                Session::forget('is_verified');
-                Notification::make()
-                    ->title($responseData['message'] ?? 'Subscription removed successfully')
-                    ->success()
-                    ->send();
-            } else {
-                $errorMessage = $response->json()['message'] ?? $response->body() ?? 'Unknown error';
-                Notification::make()
-                    ->title('Failed to remove subscription')
-                    ->body($errorMessage)
-                    ->danger()
-                    ->send();
-            }
-        } catch (\Exception $e) {
-            Notification::make()
-                ->title('Failed to remove subscription')
-                ->body('An error occurred: ' . $e->getMessage())
                 ->danger()
                 ->send();
         }
