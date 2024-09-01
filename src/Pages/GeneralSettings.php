@@ -76,7 +76,7 @@ class GeneralSettings extends Page implements Forms\Contracts\HasForms
                     ->disabled(fn () => $this->isVerified()),
                 Forms\Components\Actions::make([
                     Forms\Components\Actions\Action::make('verifyKey')
-                    ->label(fn () => $this->isVerified() ? __('startupful-plugin.plugin_key_remove') : __('startupful-plugin.plugin_key_verify'))
+                    ->label(fn () => $this->isVerified() ? __('startupful-plugin.plugin_key_remove') : __('startupful-plugin.plugin_key_apply'))
                         ->action('verifyOrRemoveKey')
                         ->color(fn () => $this->isVerified() ? 'danger' : 'primary')
                 ]),

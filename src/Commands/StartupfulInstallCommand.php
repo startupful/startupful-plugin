@@ -510,7 +510,16 @@ class StartupfulInstallCommand extends Command
             }
     EOD;
 
-            $content = preg_replace('/->authMiddleware\(\[.*?\]\);(?=\s*}\s*$)/s', $panelMethodUpdate, $content);
+            // Find the position of the last occurrence of '->authMiddleware(['
+            $lastAuthMiddlewarePos = strrpos($content, '->authMiddleware([');
+            if ($lastAuthMiddlewarePos !== false) {
+                // Find the closing bracket of authMiddleware
+                $closingBracketPos = strpos($content, ']);', $lastAuthMiddlewarePos);
+                if ($closingBracketPos !== false) {
+                    // Insert the new content right after the closing bracket
+                    $content = substr_replace($content, $panelMethodUpdate, $closingBracketPos + 2, 0);
+                }
+            }
 
             file_put_contents($providerPath, $content);
 
