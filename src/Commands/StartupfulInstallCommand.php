@@ -54,6 +54,8 @@ class StartupfulInstallCommand extends Command
         $this->updateAppServiceProvider();
         $this->updateHttpKernel();
 
+        $this->updateLanguageFiles();
+
         $this->copyAppBlade();
         $this->updateTailwindConfig();
 
@@ -676,5 +678,35 @@ EOD;
                 $this->warn("Source file for $filename not found at " . base_path($sourcePath));
             }
         }
+    }
+
+    protected function updateLanguageFiles()
+    {
+        $sourcePath = __DIR__.'/../../resources/lang';
+        $destinationPath = resource_path('lang');
+
+        foreach (File::directories($sourcePath) as $langDirectory) {
+            $lang = basename($langDirectory);
+            
+            foreach (File::files($langDirectory) as $file) {
+                $sourceFile = $file->getRealPath();
+                $destFile = $destinationPath . '/' . $lang . '/' . $file->getFilename();
+
+                if (!File::exists($destFile)) {
+                    File::copy($sourceFile, $destFile);
+                    $this->info("Created new language file: {$destFile}");
+                } else {
+                    $sourceTranslations = require $sourceFile;
+                    $destTranslations = require $destFile;
+
+                    $updatedTranslations = array_merge($destTranslations, $sourceTranslations);
+                    
+                    File::put($destFile, '<?php return ' . var_export($updatedTranslations, true) . ';');
+                    $this->info("Updated language file: {$destFile}");
+                }
+            }
+        }
+
+        $this->info('Language files have been updated successfully.');
     }
 }

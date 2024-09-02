@@ -27,4 +27,5 @@ return [
     'description' => '描述',
     'install_date' => '安装日期',
     'update' => '更新',
+    'uninstall' => '删除',
 ];

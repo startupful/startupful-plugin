@@ -27,4 +27,5 @@ return [
     'description' => 'Paglalarawan',
     'install_date' => 'Petsa ng Pag-install',
     'update' => 'I-update',
+    'uninstall' => 'I-delete',
 ];

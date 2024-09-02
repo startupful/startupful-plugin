@@ -27,4 +27,5 @@ return [
     'description' => 'Description',
     'install_date' => 'Install Date',
     'update' => 'Update',
+    'uninstall' => 'Delete'
 ];

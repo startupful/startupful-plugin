@@ -27,4 +27,5 @@ return [
     'description' => 'विवरण',
     'install_date' => 'इंस्टॉल की तिथि',
     'update' => 'अपडेट',
+    'uninstall' => 'हटाएं',
 ];

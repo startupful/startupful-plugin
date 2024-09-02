@@ -27,4 +27,5 @@ return [
     'description' => 'Descrição',
     'install_date' => 'Data de Instalação',
     'update' => 'Atualizar',
+    'uninstall' => 'Excluir',
 ];
