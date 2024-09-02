@@ -10,8 +10,8 @@ use Illuminate\Support\Collection;
 use Startupful\StartupfulPlugin\Http\Controllers\PluginInstallController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Session;
 use Filament\Notifications\Notification;
+use Startupful\StartupfulPlugin\Models\PluginSetting;
 
 class InstallPluginPage extends Page
 {
@@ -35,7 +35,14 @@ class InstallPluginPage extends Page
 
     private function checkSubscription(): void
     {
-        $this->isSubscribed = Session::get('is_verified', false);
+        $this->isSubscribed = $this->isVerified();
+    }
+
+    private function isVerified(): bool
+    {
+        return PluginSetting::where('plugin_id', 1)
+            ->where('key', 'plugin-key')
+            ->exists();
     }
 
     public static function getNavigationLabel(): string
@@ -70,7 +77,7 @@ class InstallPluginPage extends Page
         if (!$this->isSubscribed) {
             Notification::make()
                 ->title("Subscription required")
-                ->body("Please verify your subscription before installing plugins.")
+                ->body("Please verify your subscription in the General Settings page before installing plugins.")
                 ->warning()
                 ->send();
             return;

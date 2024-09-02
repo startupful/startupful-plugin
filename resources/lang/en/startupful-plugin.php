@@ -26,4 +26,5 @@ return [
     'version' => 'Version',
     'description' => 'Description',
     'install_date' => 'Install Date',
+    'update' => 'Update',
 ];

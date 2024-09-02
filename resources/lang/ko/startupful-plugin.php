@@ -26,4 +26,5 @@ return [
     'version' => '버전',
     'description' => '설명',
     'install_date' => '설치 날짜',
+    'update' => '',
 ];

@@ -26,4 +26,5 @@ return [
     'version' => 'संस्करण',
     'description' => 'विवरण',
     'install_date' => 'इंस्टॉल की तिथि',
+    'update' => 'अपडेट',
 ];

@@ -469,45 +469,46 @@ class StartupfulInstallCommand extends Command
             $panelMethodUpdate = <<<'EOD'
                 ]);
 
-                $isPluginKeySet = $this->isPluginKeySet();
-                Log::channel('daily')->info('AdminPanelProvider: Plugin key set status', ['isSet' => $isPluginKeySet]);
+                try {
+                    $isPluginKeySet = $this->isPluginKeySet();
+                    Log::channel('daily')->info('AdminPanelProvider: Plugin key set status', ['isSet' => $isPluginKeySet]);
 
-                if ($isPluginKeySet) {
-                    Log::channel('daily')->info('AdminPanelProvider: Checking and registering additional plugins');
-                    
-                    if (class_exists('Startupful\ContentsSummary\ContentsSummaryPlugin')) {
-                        $panel->plugin(\Startupful\ContentsSummary\ContentsSummaryPlugin::make());
-                        Log::channel('daily')->info('AdminPanelProvider: ContentsSummaryPlugin registered');
+                    if ($isPluginKeySet) {
+                        Log::channel('daily')->info('AdminPanelProvider: Checking and registering additional plugins');
+                        
+                        if (class_exists('Startupful\ContentsSummary\ContentsSummaryPlugin')) {
+                            $panel->plugin(\Startupful\ContentsSummary\ContentsSummaryPlugin::make());
+                            Log::channel('daily')->info('AdminPanelProvider: ContentsSummaryPlugin registered');
+                        } else {
+                            Log::channel('daily')->warning('AdminPanelProvider: ContentsSummaryPlugin class not found');
+                        }
+
+                        if (class_exists('Startupful\WebpageManager\WebpageManagerPlugin')) {
+                            $panel->plugin(WebpageManagerPlugin::make());
+                            Log::channel('daily')->info('AdminPanelProvider: WebpageManagerPlugin registered');
+                        } else {
+                            Log::channel('daily')->warning('AdminPanelProvider: WebpageManagerPlugin class not found');
+                        }
+
+                        if (class_exists('Startupful\AvatarChat\AvatarChatPlugin')) {
+                            $panel->plugin(AvatarChatPlugin::make());
+                            Log::channel('daily')->info('AdminPanelProvider: AvatarChatPlugin registered');
+                        } else {
+                            Log::channel('daily')->warning('AdminPanelProvider: AvatarChatPlugin class not found');
+                        }
                     } else {
-                        Log::channel('daily')->warning('AdminPanelProvider: ContentsSummaryPlugin class not found');
+                        Log::channel('daily')->info('AdminPanelProvider: Skipping additional plugin registration due to missing key');
                     }
 
-                    if (class_exists('Startupful\WebpageManager\WebpageManagerPlugin')) {
-                        $panel->plugin(WebpageManagerPlugin::make());
-                        Log::channel('daily')->info('AdminPanelProvider: WebpageManagerPlugin registered');
-                    } else {
-                        Log::channel('daily')->warning('AdminPanelProvider: WebpageManagerPlugin class not found');
-                    }
-
-                    if (class_exists('Startupful\AvatarChat\AvatarChatPlugin')) {
-                        $panel->plugin(AvatarChatPlugin::make());
-                        Log::channel('daily')->info('AdminPanelProvider: AvatarChatPlugin registered');
-                    } else {
-                        Log::channel('daily')->warning('AdminPanelProvider: AvatarChatPlugin class not found');
-                    }
-                } else {
-                    Log::channel('daily')->info('AdminPanelProvider: Skipping additional plugin registration due to missing key');
+                    Log::channel('daily')->info('AdminPanelProvider: Panel configuration completed');
+                    return $panel;
+                } catch (\Exception $e) {
+                    Log::channel('daily')->error('AdminPanelProvider: Exception occurred', [
+                        'message' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw $e;
                 }
-
-                Log::channel('daily')->info('AdminPanelProvider: Panel configuration completed');
-                return $panel;
-            } catch (\Exception $e) {
-                Log::channel('daily')->error('AdminPanelProvider: Exception occurred', [
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-                throw $e;
-            }
     EOD;
 
             // Find the position of the last occurrence of '->authMiddleware(['
@@ -516,8 +517,11 @@ class StartupfulInstallCommand extends Command
                 // Find the closing bracket of authMiddleware
                 $closingBracketPos = strpos($content, ']);', $lastAuthMiddlewarePos);
                 if ($closingBracketPos !== false) {
-                    // Insert the new content right after the closing bracket
-                    $content = substr_replace($content, $panelMethodUpdate, $closingBracketPos + 2, 0);
+                    // Check if the updated content already exists
+                    if (strpos($content, '$isPluginKeySet = $this->isPluginKeySet();') === false) {
+                        // Insert the new content right after the closing bracket
+                        $content = substr_replace($content, $panelMethodUpdate, $closingBracketPos + 2, 0);
+                    }
                 }
             }
 

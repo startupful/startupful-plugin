@@ -8,12 +8,12 @@ use Livewire\Component;
 use Filament\Tables\Table;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\DeleteAction;
-use Illuminate\Support\Facades\Session;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Actions\Action as FormAction;
 use Illuminate\Support\Facades\App;
 use Startupful\StartupfulPlugin\Models\Plugin;
+use Startupful\StartupfulPlugin\Models\PluginSetting;
 use Filament\Notifications\Notification;
 use Startupful\StartupfulPlugin\StartupfulPlugin;
 use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
@@ -49,8 +49,21 @@ class ManagePluginsController
         return $startupfulPlugin ? $startupfulPlugin->version : 'Unknown';
     }
 
+    protected function isVerified(): bool
+    {
+        return PluginSetting::where('plugin_id', 1)
+            ->where('key', 'plugin-key')
+            ->exists();
+    }
+
     public function table(Table $table): Table
     {
+        if (!$this->isVerified()) {
+            return $table
+                ->query(Plugin::query())
+                ->emptyStateHeading('Subscription Required')
+                ->emptyStateDescription('Please verify your subscription in the General Settings page to manage plugins.');
+        }
 
         return $table
             ->query(Plugin::query()->orderByDesc('is_core')->orderBy('name'))
@@ -76,6 +89,16 @@ class ManagePluginsController
             ])
             ->searchable(false)
             ->actions([
+                Action::make('update')
+                    ->label(__('startupful-plugin.update'))
+                    ->action(fn (Plugin $record) => $this->updatePlugin($record))
+                    ->requiresConfirmation()
+                    ->hidden(fn (Plugin $record) => $record->name === 'startupful-plugin' && $this->getLatestStartupfulPluginVersion() <= $record->version),
+                Action::make('uninstall')
+                    ->label(__('startupful-plugin.uninstall'))
+                    ->action(fn (Plugin $record) => $this->uninstallPlugin($record))
+                    ->requiresConfirmation()
+                    ->hidden(fn (Plugin $record) => $record->is_core),
             ])
             ->headerActions([
             ]);
@@ -83,6 +106,9 @@ class ManagePluginsController
 
     public function getInstalledPlugins()
     {
+        if (!$this->isVerified()) {
+            return collect();
+        }
         return Plugin::all();
     }
 
@@ -98,10 +124,10 @@ class ManagePluginsController
 
     public function updatePlugin(Plugin $plugin): void
     {
-        if (!Session::get('is_verified', false)) {
+        if (!$this->isVerified()) {
             Notification::make()
                 ->title("Subscription verification required")
-                ->body("Please verify your subscription before updating plugins.")
+                ->body("Please verify your subscription in the General Settings page before updating plugins.")
                 ->warning()
                 ->send();
             return;
@@ -125,6 +151,15 @@ class ManagePluginsController
 
     public function uninstallPlugin($plugin): void
     {
+        if (!$this->isVerified()) {
+            Notification::make()
+                ->title("Subscription verification required")
+                ->body("Please verify your subscription in the General Settings page before uninstalling plugins.")
+                ->warning()
+                ->send();
+            return;
+        }
+
         try {
             $this->getUninstallController()->uninstallPlugin($plugin);
         } catch (\Exception $e) {

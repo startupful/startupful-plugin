@@ -8,6 +8,8 @@ use Filament\Tables\Table;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Startupful\StartupfulPlugin\Http\Controllers\ManagePluginsController;
 use Startupful\StartupfulPlugin\Models\Plugin;
+use Startupful\StartupfulPlugin\Models\PluginSetting;
+use Filament\Notifications\Notification;
 
 class ManagePlugins extends Page implements Tables\Contracts\HasTable
 {

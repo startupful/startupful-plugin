@@ -26,4 +26,5 @@ return [
     'version' => 'Bersyon',
     'description' => 'Paglalarawan',
     'install_date' => 'Petsa ng Pag-install',
+    'update' => 'I-update',
 ];
