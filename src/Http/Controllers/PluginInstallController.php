@@ -204,4 +204,10 @@ class PluginInstallController
 
         Log::info("Asset publishing completed for plugin: {$plugin['name']}");
     }
+
+    private function getServiceProviderClass($plugin): string
+    {
+        $pluginName = $this->generateClassName($plugin['name']);
+        return "Startupful\\{$pluginName}\\{$pluginName}ServiceProvider";
+    }
 }
