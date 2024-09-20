@@ -104,4 +104,12 @@
     @apply border border-indigo-200 dark:border-darkblue-400 text-gray-700 dark:text-gray-400 dark:hover:bg-darkblue-800 hover:bg-gray-50 dark:focus:bg-darkblue-700 focus:bg-gray-200 dark:active:bg-darkblue-900 active:bg-gray-200 focus:ring-indigo-500;
   }
 
+  .fi-body, .fi-sidebar, .fi-dropdown-panel {
+    @apply !bg-white dark:!bg-[#09090b];
+  }
+
+  .fi-sidebar-header, .fi-topbar > nav {
+    @apply !bg-white dark:!bg-[#18181b];
+  }
+
 }

@@ -483,24 +483,17 @@ EOD;
         // Add the new code at the end of the panel method
         $newEndingCode = <<<'EOD'
 
-            $isPluginKeySet = $this->isPluginKeySet();
+       $isPluginKeySet = $this->isPluginKeySet();
             Log::channel('daily')->info('AdminPanelProvider: Plugin key set status', ['isSet' => $isPluginKeySet]);
 
             if ($isPluginKeySet) {
                 Log::channel('daily')->info('AdminPanelProvider: Checking and registering additional plugins');
-                
-                if (class_exists('Startupful\ContentsSummary\ContentsSummaryPlugin')) {
-                    $panel->plugin(\Startupful\ContentsSummary\ContentsSummaryPlugin::make());
-                    Log::channel('daily')->info('AdminPanelProvider: ContentsSummaryPlugin registered');
-                } else {
-                    Log::channel('daily')->warning('AdminPanelProvider: ContentsSummaryPlugin class not found');
-                }
 
-                if (class_exists('Startupful\WebpageManager\WebpageManagerPlugin')) {
-                    $panel->plugin(\Startupful\WebpageManager\WebpageManagerPlugin::make());
-                    Log::channel('daily')->info('AdminPanelProvider: WebpageManagerPlugin registered');
+                if (class_exists('Startupful\ContentsGenerate\ContentsGeneratePlugin')) {
+                    $panel->plugin(\Startupful\ContentsGenerate\ContentsGeneratePlugin::make());
+                    Log::channel('daily')->info('AdminPanelProvider: ContentsGeneratePlugin registered');
                 } else {
-                    Log::channel('daily')->warning('AdminPanelProvider: WebpageManagerPlugin class not found');
+                    Log::channel('daily')->warning('AdminPanelProvider: ContentsGeneratePlugin class not found');
                 }
 
                 if (class_exists('Startupful\AvatarChat\AvatarChatPlugin')) {
