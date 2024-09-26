@@ -93,7 +93,13 @@ class ManagePluginsController
                     ->label(__('startupful-plugin.update'))
                     ->action(fn (Plugin $record) => $this->updatePlugin($record))
                     ->requiresConfirmation()
-                    ->hidden(fn (Plugin $record) => $record->name === 'startupful-plugin' && $this->getLatestStartupfulPluginVersion() <= $record->version),
+                    ->hidden(function (Plugin $record) {
+                        if ($record->name === 'startupful-plugin') {
+                            $latestVersion = $this->getLatestStartupfulPluginVersion();
+                            return !$latestVersion || version_compare($latestVersion, $record->version, '<=');
+                        }
+                        return false; // For other plugins, always show the update button
+                    }),
                 Action::make('uninstall')
                     ->label(__('startupful-plugin.uninstall'))
                     ->action(fn (Plugin $record) => $this->uninstallPlugin($record))

@@ -25,6 +25,10 @@ class GeneralSettings extends Page implements Forms\Contracts\HasForms
 
     public $app_language;
     public $plugin_key;
+    public $openai_api_key;
+    public $anthropic_api_key;
+    public $google_gemini_api_key;
+    public $huggingface_api_key;
     protected $mainServerUrl = 'https://startupful.io';
 
     public function mount(): void
@@ -34,6 +38,10 @@ class GeneralSettings extends Page implements Forms\Contracts\HasForms
         $this->form->fill([
             'app_language' => config('app.locale'),
             'plugin_key' => $pluginSetting ? $pluginSetting->value : '',
+            'openai_api_key' => env('OPENAI_API_KEY', ''),
+            'anthropic_api_key' => env('ANTHROPIC_API_KEY', ''),
+            'google_gemini_api_key' => env('GEMINI_API_KEY', ''),
+            'huggingface_api_key' => env('HUGGINGFACE_API_KEY', ''),
         ]);
     }
 
@@ -70,17 +78,42 @@ class GeneralSettings extends Page implements Forms\Contracts\HasForms
                     ->options($this->getLanguageOptions())
                     ->required()
                     ->helperText(__('startupful-plugin.select_language')),
-                Forms\Components\TextInput::make('plugin_key')
-                    ->label(__('startupful-plugin.plugin_key'))
-                    ->helperText(__('startupful-plugin.plugin_key_info'))
-                    ->disabled(fn () => $this->isVerified()),
-                Forms\Components\Actions::make([
-                    Forms\Components\Actions\Action::make('verifyKey')
-                    ->label(fn () => $this->isVerified() ? __('startupful-plugin.plugin_key_remove') : __('startupful-plugin.plugin_key_apply'))
-                        ->action('verifyOrRemoveKey')
-                        ->color(fn () => $this->isVerified() ? 'danger' : 'primary')
-                ]),
+                Forms\Components\Section::make('Startupful Plugin Key')
+                    ->schema([
+                        Forms\Components\TextInput::make('plugin_key')
+                            ->required()
+                            ->label('Startupful Plugin Key')
+                            ->helperText(__('startupful-plugin.plugin_key_info'))
+                            ->disabled(fn () => $this->isVerified()),
+                    ])
+                    ->headerActions([
+                        Forms\Components\Actions\Action::make('verifyKey')
+                            ->label(fn () => $this->isVerified() ? __('startupful-plugin.plugin_key_remove') : __('startupful-plugin.plugin_key_apply'))
+                            ->action('verifyOrRemoveKey')
+                            ->color(fn () => $this->isVerified() ? 'danger' : 'primary')
+                    ]),
+                Forms\Components\Section::make('AI Provider API Keys')
+                    ->schema([
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                $this->makeSecureApiKeyInput('openai_api_key', 'OpenAI API Key'),
+                                $this->makeSecureApiKeyInput('anthropic_api_key', 'Anthropic API Key'),
+                                $this->makeSecureApiKeyInput('google_gemini_api_key', 'Google Gemini API Key'),
+                                $this->makeSecureApiKeyInput('huggingface_api_key', 'Hugging Face API Key'),
+                            ]),
+                    ]),
             ]);
+    }
+
+    private function makeSecureApiKeyInput($name, $label)
+    {
+        return Forms\Components\TextInput::make($name)
+            ->label($label)
+            ->password()
+            ->revealable()
+            ->placeholder("Enter $label")
+            ->dehydrated(fn ($state) => filled($state))
+            ->dehydrateStateUsing(fn ($state) => filled($state) ? $state : null);
     }
 
     public function verifyOrRemoveKey(): void
@@ -203,6 +236,11 @@ class GeneralSettings extends Page implements Forms\Contracts\HasForms
         $this->updateEnvFile('APP_LOCALE', $locale);
         $this->updateEnvFile('APP_FALLBACK_LOCALE', $locale);
         $this->updateEnvFile('APP_FAKER_LOCALE', $fakerLocale);
+
+        $this->updateEnvFile('OPENAI_API_KEY', $data['openai_api_key']);
+        $this->updateEnvFile('ANTHROPIC_API_KEY', $data['anthropic_api_key']);
+        $this->updateEnvFile('GEMINI_API_KEY', $data['google_gemini_api_key']);
+        $this->updateEnvFile('HUGGINGFACE_API_KEY', $data['huggingface_api_key']);
 
         // Clear config cache
         Artisan::call('config:clear');

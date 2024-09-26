@@ -5,6 +5,14 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
+        {!! SEOMeta::generate() !!}
+        {!! OpenGraph::generate() !!}
+        {!! Twitter::generate() !!}
+        {!! JsonLd::generate() !!}
+        <ANTARTIFACTLINK identifier="updated-layout-head" type="application/vnd.ant.code" language="html" title="Updated layout <head isClosed="true" />
+        
+        <title>{{ $title ?? config('app.name', 'Laravel') }}</title>
+
         <!-- Scripts -->
         <script>
         // Immediately invoked function to set the theme before page load

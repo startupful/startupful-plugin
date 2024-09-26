@@ -155,6 +155,10 @@ class StartupfulInstallCommand extends Command
             'APP_LOCALE' => 'en',
             'APP_FALLBACK_LOCALE' => 'en',
             'APP_FAKER_LOCALE' => 'en_US',
+            'OPENAI_API_KEY' => '',
+            'ANTHROPIC_API_KEY' => '',
+            'HUGGINGFACE_API_KEY' => '',
+            'GEMINI_API_KEY' => '',
         ];
 
         foreach ($envUpdates as $key => $value) {
