@@ -445,9 +445,9 @@ class StartupfulInstallCommand extends Command
         if (!Str::contains($content, 'private function isPluginKeySet()')) {
             $isPluginKeySetMethod = <<<'EOD'
 
-    protected $mainServerUrl = 'https://startupful.io';
+   protected $mainServerUrl = 'https://startupful.io';
     protected $cacheKey = 'subscription_status';
-    protected $cacheDuration = 86400; // 24 hours in seconds
+    protected $cacheDuration = 3600; // 1 hour in seconds
 
     private function isPluginKeySet(): bool
     {
@@ -467,44 +467,60 @@ class StartupfulInstallCommand extends Command
 
     private function verifySubscription(): bool
     {
-        // Check if the result is cached
-        if (Cache::has($this->cacheKey)) {
-            $cachedStatus = Cache::get($this->cacheKey);
-            Log::info('Using cached subscription status', ['status' => $cachedStatus]);
-            return $cachedStatus;
+        // Check if the cache needs to be refreshed
+        if (!Cache::has($this->cacheKey) || Cache::get($this->cacheKey . '_last_checked', 0) < now()->subHours(1)->timestamp) {
+            $pluginKey = PluginSetting::where('plugin_name', 'startupful_plugin')
+                ->where('key', 'plugin-key')
+                ->first();
+
+            if (!$pluginKey || empty($pluginKey->value)) {
+                Log::error('No valid plugin key found');
+                $this->cacheSubscriptionStatus(false);
+                return false;
+            }
+
+            try {
+                $response = Http::post($this->mainServerUrl . '/api/verify-subscription', [
+                    'paddle_id' => $pluginKey->value,
+                    'domain' => request()->getHost(),
+                ]);
+                
+                $isValid = $response->successful();
+                Log::info('Subscription verification result', ['isValid' => $isValid, 'response' => $response->json()]);
+                $this->cacheSubscriptionStatus($isValid);
+
+                if (!$isValid) {
+                    $this->deactivatePlugin();
+                }
+
+                return $isValid;
+            } catch (\Exception $e) {
+                Log::error('Subscription verification failed', ['error' => $e->getMessage()]);
+                $this->cacheSubscriptionStatus(false);
+                $this->deactivatePlugin();
+                return false;
+            }
         }
 
-        $pluginKey = PluginSetting::where('plugin_name', 'startupful_plugin')
-            ->where('key', 'plugin-key')
-            ->first();
-
-        if (!$pluginKey || empty($pluginKey->value)) {
-            Log::error('No valid plugin key found');
-            $this->cacheSubscriptionStatus(false);
-            return false;
-        }
-
-        try {
-            $response = Http::post($this->mainServerUrl . '/api/verify-subscription', [
-                'paddle_id' => $pluginKey->value,
-                'domain' => request()->getHost(),
-            ]);
-            
-            $isValid = $response->successful();
-            Log::info('Subscription verification result', ['isValid' => $isValid, 'response' => $response->json()]);
-            $this->cacheSubscriptionStatus($isValid);
-            return $isValid;
-        } catch (\Exception $e) {
-            Log::error('Subscription verification failed', ['error' => $e->getMessage()]);
-            $this->cacheSubscriptionStatus(false);
-            return false;
-        }
+        $cachedStatus = Cache::get($this->cacheKey);
+        Log::info('Using cached subscription status', ['status' => $cachedStatus]);
+        return $cachedStatus;
     }
 
     private function cacheSubscriptionStatus(bool $status): void
     {
         Cache::put($this->cacheKey, $status, $this->cacheDuration);
+        Cache::put($this->cacheKey . '_last_checked', now()->timestamp, $this->cacheDuration);
         Log::info('Cached subscription status', ['status' => $status]);
+    }
+
+    private function deactivatePlugin(): void
+    {
+        PluginSetting::where('plugin_name', 'startupful_plugin')
+            ->where('key', 'plugin-key')
+            ->delete();
+        
+        Log::info('Plugin deactivated and key removed');
     }
 
 EOD;
