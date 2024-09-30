@@ -113,4 +113,5 @@ return array (
   'image_down' => 'ดาวน์โหลดภาพ',
   'view_prompt' => 'Prompt View',
   'audio_down' => 'ดาวน์โหลดเสียง',
+  'time' => 'เวลา',
 );

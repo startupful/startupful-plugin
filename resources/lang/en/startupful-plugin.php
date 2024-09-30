@@ -113,4 +113,5 @@ return array (
   'image_down' => 'Download image',
   'view_prompt' => 'View prompt',
   'audio_down' => 'Audio download',
+  'time' => 'time',
 );

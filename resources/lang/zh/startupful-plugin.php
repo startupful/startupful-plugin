@@ -113,4 +113,5 @@ return array (
   'image_down' => '下载图片',
   'view_prompt' => '提示符视图',
   'audio_down' => '音频下载',
+  'time' => '时间',
 );

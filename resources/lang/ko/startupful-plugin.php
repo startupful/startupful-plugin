@@ -58,6 +58,7 @@ return array (
   'right' => '오른쪽',
   'width' => '넓이',
   'option' => '옵션',
+  'time' => '시간',
   'label_end--' => 'label',
   'pannel_start--' => 'pannel',
   'settings' => '기본 설정',

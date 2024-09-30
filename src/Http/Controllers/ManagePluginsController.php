@@ -74,11 +74,8 @@ class ManagePluginsController
                 Tables\Columns\TextColumn::make('version')
                     ->label(__('startupful-plugin.version'))
                     ->formatStateUsing(function (Plugin $record) {
-                        if ($record->name === 'startupful-plugin') {
-                            $latestVersion = $this->getLatestStartupfulPluginVersion();
-                            return $record->version . ($latestVersion && version_compare($latestVersion, $record->version, '>') ? " (Update available: $latestVersion)" : '');
-                        }
-                        return $record->version;
+                        $latestVersion = $this->getLatestPluginVersion($record->name);
+                        return $record->version . ($latestVersion && version_compare($latestVersion, $record->version, '>') ? " (Update available: $latestVersion)" : '');
                     }),
                 Tables\Columns\TextColumn::make('description')
                     ->label(__('startupful-plugin.description'))
@@ -94,11 +91,8 @@ class ManagePluginsController
                     ->action(fn (Plugin $record) => $this->updatePlugin($record))
                     ->requiresConfirmation()
                     ->hidden(function (Plugin $record) {
-                        if ($record->name === 'startupful-plugin') {
-                            $latestVersion = $this->getLatestStartupfulPluginVersion();
-                            return !$latestVersion || version_compare($latestVersion, $record->version, '<=');
-                        }
-                        return false; // For other plugins, always show the update button
+                        $latestVersion = $this->getLatestPluginVersion($record->name);
+                        return !$latestVersion || version_compare($latestVersion, $record->version, '<=');
                     }),
                 Action::make('uninstall')
                     ->label(__('startupful-plugin.uninstall'))
@@ -126,6 +120,18 @@ class ManagePluginsController
     protected function getUninstallController()
     {
         return App::make(PluginUninstallController::class);
+    }
+
+
+    protected function getLatestPluginVersion(string $pluginName): ?string
+    {
+        // startupful-plugin 경우 기존 메서드 사용
+        if ($pluginName === 'startupful-plugin') {
+            return $this->getLatestStartupfulPluginVersion();
+        }
+
+        // 다른 플러그인의 경우 GithubPluginRepository 사용
+        return $this->githubRepo->getLatestVersion("startupful/$pluginName");
     }
 
     public function updatePlugin(Plugin $plugin): void

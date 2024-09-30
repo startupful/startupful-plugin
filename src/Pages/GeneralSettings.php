@@ -237,10 +237,14 @@ class GeneralSettings extends Page implements Forms\Contracts\HasForms
         $this->updateEnvFile('APP_FALLBACK_LOCALE', $locale);
         $this->updateEnvFile('APP_FAKER_LOCALE', $fakerLocale);
 
-        $this->updateEnvFile('OPENAI_API_KEY', $data['openai_api_key']);
-        $this->updateEnvFile('ANTHROPIC_API_KEY', $data['anthropic_api_key']);
-        $this->updateEnvFile('GEMINI_API_KEY', $data['google_gemini_api_key']);
-        $this->updateEnvFile('HUGGINGFACE_API_KEY', $data['huggingface_api_key']);
+        // API 키 업데이트 (입력된 값만 처리)
+        $apiKeys = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'HUGGINGFACE_API_KEY'];
+        foreach ($apiKeys as $key) {
+            $formKey = strtolower($key);
+            if (isset($data[$formKey]) && !empty($data[$formKey])) {
+                $this->updateEnvFile($key, $data[$formKey]);
+            }
+        }
 
         // Clear config cache
         Artisan::call('config:clear');
@@ -257,11 +261,22 @@ class GeneralSettings extends Page implements Forms\Contracts\HasForms
         $path = base_path('.env');
 
         if (file_exists($path)) {
-            file_put_contents($path, preg_replace(
-                "/^{$key}=.*/m",
-                "{$key}={$value}",
-                file_get_contents($path)
-            ));
+            $content = file_get_contents($path);
+            
+            // 기존 키가 있는지 확인
+            if (preg_match("/^{$key}=/m", $content)) {
+                // 기존 키 업데이트
+                $content = preg_replace(
+                    "/^{$key}=.*/m",
+                    "{$key}={$value}",
+                    $content
+                );
+            } else {
+                // 키가 없으면 새로 추가
+                $content .= "\n{$key}={$value}";
+            }
+            
+            file_put_contents($path, $content);
         }
     }
 

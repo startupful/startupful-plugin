@@ -113,4 +113,5 @@ return array (
   'image_down' => '画像のダウンロード',
   'view_prompt' => 'プロンプトを表示',
   'audio_down' => 'オーディオのダウンロード',
+  'time' => '時間',
 );
