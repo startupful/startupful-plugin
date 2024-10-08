@@ -22,6 +22,7 @@ return array (
   'image_down' => '이미지 다운로드',
   'view_prompt' => '프롬프트 보기',
   'audio_down' => '오디오 다운로드',
+  'docx_down' => '문서 다운로드',
   'button_end--' => 'button',
   'label_start--' => 'label',
   'app_language' => '애플리케이션 언어',

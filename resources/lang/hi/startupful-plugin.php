@@ -114,4 +114,5 @@ return array (
   'view_prompt' => 'प्रोम्प्ट देखें',
   'audio_down' => 'ऑडियो डाउनलोड',
   'time' => 'समय',
+  'docx_down' => 'दस्तावेज़ डाउनलोड',
 );

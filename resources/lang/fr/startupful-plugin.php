@@ -114,4 +114,5 @@ return array (
   'view_prompt' => 'Afficher l\'invite',
   'audio_down' => 'Téléchargement audio',
   'time' => 'temps',
+  'docx_down' => 'Téléchargement du document',
 );

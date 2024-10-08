@@ -114,4 +114,5 @@ return array (
   'view_prompt' => '提示符视图',
   'audio_down' => '音频下载',
   'time' => '时间',
+  'docx_down' => '下载文档',
 );

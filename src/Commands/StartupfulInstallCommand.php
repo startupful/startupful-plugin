@@ -65,6 +65,7 @@ class StartupfulInstallCommand extends Command
         $this->copyProfileViews();
 
         $this->copyLogoFiles();
+        $this->copyAvatarFiles();
 
         $version = $this->getCurrentVersion();
 
@@ -725,6 +726,35 @@ EOD;
                 $this->warn("Source file for $filename not found at " . base_path($sourcePath));
             }
         }
+    }
+
+    protected function copyAvatarFiles(): void
+    {
+        $sourcePath = __DIR__ . '/../../resources/file/logo';
+        $destinationPath = storage_path('app/public/avatars');
+    
+        // Create the avatars directory if it doesn't exist
+        if (!File::isDirectory($destinationPath)) {
+            File::makeDirectory($destinationPath, 0755, true);
+            $this->info("Created avatars directory at: $destinationPath");
+        }
+    
+        // List of avatar files to copy
+        $avatarFiles = ['1.png', '2.png', '3.png', '4.png', '5.png'];
+    
+        foreach ($avatarFiles as $file) {
+            $sourceFile = $sourcePath . '/' . $file;
+            $destFile = $destinationPath . '/' . $file;
+    
+            if (File::exists($sourceFile)) {
+                File::copy($sourceFile, $destFile);
+                $this->info("Copied $file to avatars directory.");
+            } else {
+                $this->warn("Source file for $file not found at $sourceFile");
+            }
+        }
+    
+        $this->info('Avatar files have been copied successfully.');
     }
 
     protected function updateLanguageFiles()
