@@ -23,17 +23,15 @@ class StartupfulPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        if (Auth::check() && Auth::id() === 1) {
-            try {
+
+
                 $panel->pages([
                     GeneralSettings::class,
                     ManagePlugins::class,
                     InstallPluginPage::class
                 ]);
-            } catch (\Exception $e) {
-                // Log the exception or handle it as needed
-            }
-        }
+
+
     }
 
     public function boot(Panel $panel): void
