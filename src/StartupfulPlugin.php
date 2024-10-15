@@ -12,6 +12,7 @@ use Startupful\StartupfulPlugin\Pages\ManagePlugins;
 use Startupful\StartupfulPlugin\Pages\InstallPluginPage;
 use Startupful\StartupfulPlugin\Services\GithubPluginRepository;
 use Startupful\StartupfulPlugin\Http\Controllers\PluginInstallController;
+use Illuminate\Support\Facades\Auth;
 
 class StartupfulPlugin implements Plugin
 {
@@ -22,13 +23,16 @@ class StartupfulPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        try {
-            $panel->pages([
-                GeneralSettings::class,
-                ManagePlugins::class,
-                InstallPluginPage::class
-            ]);
-        } catch (\Exception $e) {
+        if (Auth::check() && Auth::id() === 1) {
+            try {
+                $panel->pages([
+                    GeneralSettings::class,
+                    ManagePlugins::class,
+                    InstallPluginPage::class
+                ]);
+            } catch (\Exception $e) {
+                // Log the exception or handle it as needed
+            }
         }
     }
 

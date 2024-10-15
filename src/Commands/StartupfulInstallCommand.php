@@ -566,6 +566,13 @@ EOD;
             } else {
                 Log::warning('AvatarChatPlugin class not found');
             }
+            
+            if (class_exists('Startupful\WebpageManager\WebpageManagerPlugin')) {
+                $panel->plugin(\Startupful\WebpageManager\WebpageManagerPlugin::make());
+                Log::info('WebpageManagerPlugin registered');
+            } else {
+                Log::warning('WebpageManagerPlugin class not found');
+            }
         } else {
             Log::warning('Additional plugins not registered', [
                 'reason' => !$isPluginKeySet ? 'Plugin key not set' : 'Invalid subscription'
